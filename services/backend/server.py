@@ -1,9 +1,11 @@
 from flask import Flask, request
+from flask_cors import CORS
 from datapoint import Datapoint
 from typing import Any, Dict, Tuple
 
 
 app = Flask(__name__)
+CORS(app)
 
 
 @app.route('/', methods=['GET'])
