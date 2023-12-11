@@ -51,8 +51,8 @@ def parse_args():
     parser.add_argument(
         "--output",
         type=str,
-        default="lmds.pkl",
-        help="Path to the output file.",
+        default="lmds.json",
+        help="Path to the output file. Supports .pkl and .json.",
     )
     return parser.parse_args()
 
@@ -62,7 +62,13 @@ def main():
         wait_for_debugger()
     dataset = pd.read_pickle(args.dataset)
     dataset = lmds(args.heuristic, args.num_landmarks, dataset)
-    dataset.to_pickle(args.output)
+    output_type = args.output.split(".")[-1]
+    if output_type == "json":
+        dataset.to_json(args.output)
+    elif output_type == "pkl":
+        dataset.to_pickle(args.output)
+    else:
+        raise NotImplementedError(f"Unknown output type: {output_type}")
 
 
 def lmds(heuristic: str, num_landmarks: int, dataset: pd.DataFrame, dimension: int = 2):
