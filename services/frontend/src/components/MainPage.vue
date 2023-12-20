@@ -3,8 +3,13 @@
 </style>
 
 <template>
-  Hello, World!
-  <Canvas ref="canvas" :datapoints="datapoints"/>
+  <Canvas
+    ref="canvas"
+    :datapoints="datapoints"
+    @hovered-point-index-changed="hoveredPointIndexChanged"
+    @selected-point-index-changed="selectedPointIndexChanged"
+  />
+  <div>{{ text }}</div>
 </template>
 
 <script>
@@ -15,13 +20,28 @@ export default {
     name: "MainPage",
     data() {
         return {
-            datapoints: []
+            datapoints: [],
+            text: "Hi"
         };
     },
-    methods: {},
+    methods: {
+      hoveredPointIndexChanged(index) {
+
+      },
+
+      selectedPointIndexChanged(index) {
+        if (index != null) {
+          this.text = JSON.stringify(this.datapoints[index].data);
+          this.text += "\n";
+          this.text += JSON.stringify(this.datapoints[index].low_d_vector);
+        } else {
+          this.text = "";
+        }
+      }
+    },
     components: { Canvas },
     mounted() {
-      fetch('http://localhost:5000/datapoints?amount=10&high_d_vector_size=768&low_d_vector_size=2')
+      fetch('http://localhost:5000/datapoints?amount=1000&high_d_vector_size=768&low_d_vector_size=2&generate_random_data=true&landmark_ratio=0.1')
         .then(response => response.json())
         .then(data => {
           this.datapoints = data;
