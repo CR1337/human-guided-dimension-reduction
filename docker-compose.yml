@@ -6,6 +6,8 @@ services:
     container_name: dr_backend
     ports:
       - 5000:5000
+    volumes:
+      - ./volumes/data:/server/data
 
   frontend:
     build: services/frontend
