@@ -218,7 +218,7 @@ class KNNHeap {
     }
 
     isFull() {
-        return this.q.size() == this.k;
+        return this.q.size() == this.k + 1;
     }
 
     top() {
@@ -226,7 +226,7 @@ class KNNHeap {
     }
 
     pushOrReject(entry) {
-        if (this.q.size() < this.k) {
+        if (this.q.size() < this.k + 1) {
             this.q.enqueue(entry);
             return true;
         } else if (entry.distance < this.top().distance) {

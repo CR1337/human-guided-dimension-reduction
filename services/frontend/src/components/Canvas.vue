@@ -8,11 +8,13 @@
 
 <script>
 import P5 from 'p5';
-import { Quadtree } from '@/util/quadtree.js'
+import { Quadtree } from '@/util/quadtree.js';
 
 export default {
     name: 'Canvas',
-    props: ['datapoints'],
+    props: [
+        'datapoints', 'k'
+    ],
     data() {
         return {
             p5canvas: null,
@@ -36,16 +38,10 @@ export default {
             zoomSpeed: 0.1,
             margin: 0.1,
 
-            landmarkFill: [255, 255, 0],
-            hoveredLandmarkFill: [0, 0, 255],
-            selectedLandmarkFill: [255, 0, 0],
-            movingLandmarkFill: [0, 255, 0],
-            pointFill: [255, 255, 255],
-            hoveredPointFill: [0, 0, 255],
-            selectedPointFill: [255, 0, 0],
-
-            k: 5
-
+            fills: [[0, 0, 255], [255, 255, 0]],
+            hoveredFill: [0, 255, 0],
+            selectedFill: [255, 0, 0],
+            neighborStroke: [255, 0, 0],
         }
     },
     methods: {
@@ -57,8 +53,8 @@ export default {
             let minY = Infinity;
             let maxY = -Infinity;
             for (const datapoint of this.datapoints) {
-                const x = datapoint.low_d_vector[0];
-                const y = datapoint.low_d_vector[1];
+                const x = datapoint.position[0];
+                const y = datapoint.position[1];
                 sumX += x;
                 sumY += y;
                 if (x < minX) minX = x;
@@ -81,8 +77,8 @@ export default {
 
             this.quadtree = new Quadtree(minX, minY, maxX, maxY);
             for (const [i, datapoint] of this.datapoints.entries()) {
-                const x = datapoint.low_d_vector[0];
-                const y = datapoint.low_d_vector[1];
+                const x = datapoint.position[0];
+                const y = datapoint.position[1];
                 this.quadtree.insert(x, y, i);
             }
 
@@ -105,8 +101,8 @@ export default {
 
             for (const foundIndex of foundIndices) {
                 const datapoint = this.datapoints[foundIndex];
-                const px = (datapoint.low_d_vector[0] + this.xTranslation) * this.scaling;
-                const py = (datapoint.low_d_vector[1] + this.yTranslation) * this.scaling;
+                const px = (datapoint.position[0] + this.xTranslation) * this.scaling;
+                const py = (datapoint.position[1] + this.yTranslation) * this.scaling;
                 if (p5.dist(p5.mouseX, p5.mouseY, px, py) < this.pointSize) {
                     return foundIndex;
                 }
@@ -115,48 +111,44 @@ export default {
             return null;
         },
 
-
-
         drawPoints(p5) {
             for (const [i, datapoint] of this.datapoints.entries()) {
-                this.drawPoint(
-                    p5,
-                    (datapoint.low_d_vector[0] + this.xTranslation) * this.scaling,
-                    (datapoint.low_d_vector[1] + this.yTranslation) * this.scaling,
-                    datapoint.is_landmark,
-                    this.hoveredPointIndex == i,
-                    this.selectedPointIndex == i,
-                    false,
-                    this.knnIndices.includes(i)
-                );
+                if (this.hoveredPointIndex == i)
+                    p5.fill(this.hoveredFill);
+                else if (this.selectedPointIndex == i) {
+                    p5.fill(this.selectedFill);
+                    p5.stroke(this.neighborStroke);
+                    for (const neighborIndex of this.knnIndices) {
+                        const datapoint = this.datapoints[neighborIndex];
+                        p5.line(
+                            (datapoint.position[0] + this.xTranslation) * this.scaling,
+                            (datapoint.position[1] + this.yTranslation) * this.scaling,
+                            (this.datapoints[i].position[0] + this.xTranslation) * this.scaling,
+                            (this.datapoints[i].position[1] + this.yTranslation) * this.scaling
+                        );
+                    }
+
+                } else
+                    p5.fill(this.fills[datapoint.label]);
+
+                if (this.knnIndices.includes(i))
+                    p5.stroke(this.neighborStroke);
+                else
+                    p5.noStroke();
+
+                if (datapoint.is_landmark)
+                    p5.square(
+                        (datapoint.position[0] + this.xTranslation) * this.scaling,
+                        (datapoint.position[1] + this.yTranslation) * this.scaling,
+                        this.landmarkSize
+                    );
+                else
+                    p5.circle(
+                        (datapoint.position[0] + this.xTranslation) * this.scaling,
+                        (datapoint.position[1] + this.yTranslation) * this.scaling,
+                        this.pointSize
+                    );
             }
-        },
-
-        drawPoint(p5, x, y, is_landmark, is_hovered, is_selected, is_moving, is_neighbor) {
-            const size = (is_landmark) ? this.landmarkSize : this.pointSize;
-
-            let fill;
-            if (is_moving)
-                fill = this.movingLandmarkFill;
-            else if (is_selected)
-                fill = (is_landmark)
-                    ? this.selectedLandmarkFill
-                    : this.selectedPointFill;
-            else if
-                (is_hovered) fill = (is_landmark)
-                    ? this.hoveredLandmarkFill
-                    : this.hoveredPointFill;
-            else fill = (is_landmark)
-                ? this.landmarkFill
-                : this.pointFill;
-
-            if (is_neighbor)
-                fill = [255, 0, 255];
-
-            p5.fill(fill);
-            (is_landmark)
-                ? p5.square(x, y, size)
-                : p5.circle(x, y, size);
         },
 
         // P5 FUNCTIONS
@@ -186,11 +178,14 @@ export default {
         mouseReleased(p5) {
             this.selectedPointIndex = this.datapointIndexAtMouse(p5);
             this.$emit('selectedPointIndexChanged', this.selectedPointIndex);
-            if (this.selectedPointIndex == null) return;
+            if (this.selectedPointIndex == null) {
+                this.knnIndices = [];
+                return;
+            }
             const datapoint = this.datapoints[this.selectedPointIndex];
             this.knnIndices = this.quadtree.findKNearestNeighbors(
-                datapoint.low_d_vector[0],
-                datapoint.low_d_vector[1],
+                datapoint.position[0],
+                datapoint.position[1],
                 this.k
             )
         }
