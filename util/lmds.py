@@ -1,21 +1,24 @@
 import pandas as pd
-from sklearn.manifold import MDS
 from sklearn.metrics.pairwise import euclidean_distances
 import argparse
 import numpy as np
 
+
 def wait_for_debugger(port: int = 56789):
     """
-    Pauses the program until a remote debugger is attached. Should only be called on rank0.
+    Pauses the program until a remote debugger is attached.
+    Should only be called on rank0.
     """
 
     import debugpy
 
     debugpy.listen(("0.0.0.0", port))
     print(
-        f"Waiting for client to attach on port {port}... NOTE: if using docker, you need to forward the port with -p {port}:{port}."
+        f"Waiting for client to attach on port {port}... NOTE: if using "
+        f"docker, you need to forward the port with -p {port}:{port}."
     )
     debugpy.wait_for_client()
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -56,6 +59,7 @@ def parse_args():
     )
     return parser.parse_args()
 
+
 def main():
     args = parse_args()
     if args.debug:
@@ -71,9 +75,14 @@ def main():
         raise NotImplementedError(f"Unknown output type: {output_type}")
 
 
-def lmds(heuristic: str, num_landmarks: int, dataset: pd.DataFrame, dimension: int = 2):
+def lmds(
+    heuristic: str,
+    num_landmarks: int,
+    dataset: pd.DataFrame,
+    dimension: int = 2
+):
     """
-    Performs LMDS on the dataset. 
+    Performs LMDS on the dataset.
     This code is inspired from the LMDS paper: http://graphics.stanford.edu/courses/cs468-05-winter/Papers/Landmarks/Silva_landmarks5.pdf and https://github.com/thomasweighill/landmarkMDS/blob/master/LMDS.py
     1. Select Landmarks
     2. Perform MDS on the landmarks
@@ -89,7 +98,8 @@ def lmds(heuristic: str, num_landmarks: int, dataset: pd.DataFrame, dimension: i
 
     # 2. Perform MDS on the landmarks
 
-    # We need to transform landmarks["embeddings"] into a numpy array with the shape (num_landmarks, embedding_dim)
+    # We need to transform landmarks["embeddings"] into a numpy array
+    # with the shape (num_landmarks, embedding_dim)
     landmark_embeddings = np.vstack(landmarks['embeddings'].apply(np.array))
 
     # Deltan is the distance matrix between the landmarks
@@ -103,47 +113,55 @@ def lmds(heuristic: str, num_landmarks: int, dataset: pd.DataFrame, dimension: i
     # We sort the eigenvalues and eigenvectors by decreasing eigenvalues
     idx = eigenvalues.argsort()[::-1]
     eigenvalues = eigenvalues[idx]
-    eigenvectors = eigenvectors[:,idx]
-    # We compute the matrix L which is given by eigenvectors * sqrt(eigenvalues)
+    eigenvectors = eigenvectors[:, idx]
+    # We compute the matrix L which is given
+    # by eigenvectors * sqrt(eigenvalues)
     L = np.zeros((len(landmarks), dimension))
     for i in range(dimension):
-        L[:,i] =  eigenvectors[:,i] * np.sqrt(eigenvalues[i])
+        L[:, i] = eigenvectors[:, i] * np.sqrt(eigenvalues[i])
 
     # Append the position of the landmarks to the dataset
     landmarks = landmarks.assign(position=L.tolist(), landmark=True)
 
-
     # 3. Apply distance-based triangulation
 
-    # The mean distance between the landmarks is the mean of the columns of Deltan
+    # The mean distance between the landmarks
+    # is the mean of the columns of Deltan
     mean_distance = delta_n.mean(axis=0)
 
-    # L_sharp is the pseudo-inverse of L given by eigenvectors * 1/sqrt(eigenvalues)
+    # L_sharp is the pseudo-inverse of L
+    # given by eigenvectors * 1/sqrt(eigenvalues)
     L_sharp = np.zeros((dimension, len(landmarks)))
     for i in range(dimension):
-        L_sharp[i,:] =  eigenvectors[:,i].transpose() * 1/np.sqrt(eigenvalues[i])
+        L_sharp[i, :] = (
+            eigenvectors[:, i].transpose() * 1/np.sqrt(eigenvalues[i])
+        )
 
     # We first need to get the embeddings of the other points
     other_points = dataset[~dataset.index.isin(landmarks.index)]
     other_embeddings = np.vstack(other_points['embeddings'].apply(np.array))
 
     # We compute for each point the distance to the landmarks
-    distance_to_landmarks = euclidean_distances(other_embeddings, landmark_embeddings)
+    distance_to_landmarks = euclidean_distances(
+        other_embeddings, landmark_embeddings
+    )
 
-    # Going through each point, we compute its position by -1/2 * L_sharp * (distance_to_landmarks - mean_distance)
+    # Going through each point, we compute its position
+    # by -1/2 * L_sharp * (distance_to_landmarks - mean_distance)
     positions = np.zeros((len(other_points), dimension))
     for i in range(len(other_points)):
-        position = -1/2 * np.dot(L_sharp, distance_to_landmarks[i] - mean_distance)
-        positions[i,:] = position
+        position = -1/2 * np.dot(
+            L_sharp, distance_to_landmarks[i] - mean_distance
+        )
+        positions[i, :] = position
 
     # Append the position of the other points to the dataset
-    other_points = other_points.assign(position=positions.tolist(), landmark=False)
+    other_points = other_points.assign(
+        position=positions.tolist(), landmark=False
+    )
 
     # We concatenate the landmarks and the other points
     return pd.concat([landmarks, other_points])
-
-    
-    
 
 
 if __name__ == "__main__":
