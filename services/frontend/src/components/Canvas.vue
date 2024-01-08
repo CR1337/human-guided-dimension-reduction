@@ -42,6 +42,7 @@ export default {
             hoveredFill: [0, 255, 0],
             selectedFill: [255, 0, 0],
             neighborStroke: [255, 0, 0],
+            landmarkStroke: [0, 255, 255]
         }
     },
     methods: {
@@ -117,19 +118,21 @@ export default {
                 if ([this.selectedPointIndex, this.hoveredPointIndex].includes(i)) continue;
                 if (this.knnIndices.includes(i)) continue
 
-                let size, shape;
+                let size, shape, stroke;
                 if (datapoint.is_landmark) {
                     size = this.landmarkSize;
                     shape = 'square';
+                    stroke = this.landmarkStroke;
                 } else {
                     size = this.pointSize;
                     shape = 'circle';
+                    stroke = null;
                 }
 
                 this.drawPoint(
                     p5,
                     datapoint.position[0], datapoint.position[1],
-                    size, this.fills[datapoint.label], null, shape
+                    size, this.fills[datapoint.label], stroke, shape
                 );
             }
 
@@ -151,16 +154,18 @@ export default {
             for (let i of this.knnIndices) {
                 const datapoint = this.datapoints[i];
 
-                let size, shape;
+                let size, shape, stroke;
                 if (datapoint.is_landmark) {
                     size = this.landmarkSize;
                     shape = 'square';
+                    stroke = this.landmarkStroke;
                 } else {
                     size = this.pointSize;
                     shape = 'circle';
+                    stroke = null;
                 }
 
-                const stroke = (this.showNeighbors) ? this.neighborStroke : null;
+                stroke = (this.showNeighbors) ? this.neighborStroke : stroke;
 
                 this.drawPoint(
                     p5,
@@ -173,19 +178,21 @@ export default {
             if (this.selectedPointIndex != null) {
                 const datapoint = this.datapoints[this.selectedPointIndex];
 
-                let size, shape;
+                let size, shape, stroke;
                 if (datapoint.is_landmark) {
                     size = this.landmarkSize;
                     shape = 'square';
+                    stroke = this.landmarkStroke;
                 } else {
                     size = this.pointSize;
                     shape = 'circle';
+                    stroke = null;
                 }
 
                 this.drawPoint(
                     p5,
                     datapoint.position[0], datapoint.position[1],
-                    size, this.selectedFill, null, shape
+                    size, this.selectedFill, stroke, shape
                 );
             }
 
@@ -193,19 +200,21 @@ export default {
             if (this.hoveredPointIndex != null) {
                 const datapoint = this.datapoints[this.hoveredPointIndex];
 
-                let size, shape;
+                let size, shape, stroke;
                 if (datapoint.is_landmark) {
                     size = this.landmarkSize;
                     shape = 'square';
+                    stroke = this.landmarkStroke;
                 } else {
                     size = this.pointSize;
                     shape = 'circle';
+                    stroke = null;
                 }
 
                 this.drawPoint(
                     p5,
                     datapoint.position[0], datapoint.position[1],
-                    size, this.hoveredFill, null, shape
+                    size, this.hoveredFill, stroke, shape
                 );
             }
         },
