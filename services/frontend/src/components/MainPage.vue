@@ -10,12 +10,14 @@
           ref="canvas"
           :datapoints="datapoints"
           :k="k"
+          :show-neighbors="showNeighbors"
+          :distance-metric="distanceMetric"
           @hovered-point-index-changed="hoveredPointIndexChanged"
           @selected-point-index-changed="selectedPointIndexChanged"
           @selected-point-moved="selectedPointMoved"
         />
       </td>
-      <td>
+      <td style="vertical-align:top">
         <div>
           <label for="heuristic">Heuristic: </label>
           <select v-model="newHeuristic" name="heuristic">
@@ -32,31 +34,37 @@
           <label for="num-landmarks">Number of Landmarks: </label>
           <input v-model="newNumLandmarks" type="number" name="num-landmarks" min="1" max="1000" step="1">
           <br>
-          <button @click="newLmds()">New LMDS</button>
+          <button @click="newLmds()" :disabled="busy">New LMDS</button>
         </div>
         <br>
 
         <div>
           <label for="lmds">LMDS: </label>
-          <select v-model="selectedLmdsId" name="lmds">
+          <select v-model="selectedLmdsId" name="lmds" @change="lmdsSelectionChanged()" :disabled="busy">
             <option v-for="lmds in lmdsIds" :value="lmds">{{ lmds }}</option>
           </select>
           <br>
           heuristic: <a v-if="selectedLmdsId !== null">{{ selectedLmds.heuristic }}</a><br>
           distance metric: <a v-if="selectedLmdsId !== null">{{ selectedLmds.distance_metric }}</a><br>
           num landmarks: <a v-if="selectedLmdsId !== null">{{ selectedLmds.num_landmarks }}</a><br>
-          <button @click="deleteLmds()" :disabled="selectedLmdsId == null">Delete</button>
+          points calculated: <a v-if="selectedLmdsId !== null">{{ selectedLmds.points_calculated }}</a><br>
+          <button @click="deleteLmds()" :disabled="selectedLmdsId == null || busy">Delete</button>
         </div>
         <br>
 
         <div>
-          <button @click="calculate()" :disabled="selectedLmdsId == null">Calculate</button>
+          <button @click="calculate()" :disabled="selectedLmdsId == null || busy">Calculate</button>
         </div>
         <br>
 
         <div>
           <label for="k">k: </label>
           <input v-model="k" type="number" name="k" min="1" max="1000" step="1">
+        </div>
+        <br>
+
+        <div v-if="busy">
+          <b style="color: #ff0000">busy...</b>
         </div>
       </td>
     </tr>
@@ -135,11 +143,14 @@ export default {
           hoveredPointIndex: null,
           selectedPointIndex: null,
 
-          k: 7
+          k: 7,
+
+          busy: false
         };
     },
     methods: {
       newLmds() {
+        this.busy = true;
         fetch('http://' + this.host + ':5000/lmds', {
             method: 'POST',
             headers: {
@@ -159,10 +170,12 @@ export default {
             this.getLandmarks();
         }).catch((error) => {
             console.error(error);
+            this.busy = false;
         });
       },
 
       getLandmarks() {
+        this.busy = true;
         fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId + '/landmarks')
             .then((response) => {
                 return response.json();
@@ -171,10 +184,13 @@ export default {
                 this.updateCanvas();
             }).catch((error) => {
                 console.error(error);
+            }).finally(() => {
+                this.busy = false;
             });
       },
 
       deleteLmds() {
+        this.busy = true;
         fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId, {
             method: 'DELETE',
         }).then((response) => {
@@ -189,6 +205,8 @@ export default {
             this.updateCanvas();
         }).catch((error) => {
             console.error(error);
+        }).finally(() => {
+            this.busy = false;
         });
       },
 
@@ -197,6 +215,7 @@ export default {
       },
 
       updateLandmarks() {
+        this.busy = true;
         fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId + '/landmarks', {
             method: 'PATCH',
             headers: {
@@ -211,24 +230,80 @@ export default {
             this.getDatapoints();
         }).catch((error) => {
             console.error(error);
+            this.busy = false;
         });
       },
 
       getDatapoints() {
+        this.busy = true;
         fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId + '/datapoints')
             .then((response) => {
                 return response.json();
             }).then((data) => {
                 this.datapoints = data.datapoints;
+                this.selectedLmdsId = data.lmds.id;
                 this.selectedLmds = data.lmds;
+                if (this.selectedLmds.distance_metric == 'cosine') {
+                    this.calculateDatapointCosines();
+                    this.sortDatapointsByCosine();
+                }
                 this.updateCanvas();
             }).catch((error) => {
                 console.error(error);
+            }).finally(() => {
+                this.busy = false;
             });
+      },
+
+      datapointCosine(datapoint) {
+        // long version:
+        // const referenceVector = [1, 0];
+        // const referenceMagnitude = 1;
+        // const dotProduct = datapoint.position[0] * referenceVector[0] + datapoint.position[1] * referenceVector[1];
+        // const magnitude = Math.sqrt(datapoint.position[0] * datapoint.position[0] + datapoint.position[1] * datapoint.position[1]);
+        // return dotProduct / (magnitude * referenceMagnitude);
+
+        // short version with implicitly hardcoded reference vector:
+        const dotProduct = datapoint.position[0];
+        const magnitude = Math.sqrt(
+          datapoint.position[0] * datapoint.position[0]
+          + datapoint.position[1] * datapoint.position[1]
+        );
+        return dotProduct / magnitude;
+      },
+
+      calculateDatapointCosines() {
+        for (const datapoint of this.datapoints) {
+          datapoint.cosine = this.datapointCosine(datapoint);
+        }
+      },
+
+      sortDatapointsByCosine() {
+        this.datapoints.sort((a, b) => {
+            return b.cosine - a.cosine;
+        });
       },
 
       updateCanvas() {
         nextTick(() => { this.$refs.canvas.datapointsUpdated(); });
+      },
+
+      lmdsSelectionChanged() {
+        this.busy = true;
+        fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId)
+            .then((response) => {
+                return response.json();
+            }).then((data) => {
+                this.selectedLmds = data.lmds;
+                if (this.selectedLmds.points_calculated) {
+                    this.getDatapoints();
+                } else {
+                    this.getLandmarks();
+                }
+            }).catch((error) => {
+                console.error(error);
+                this.busy = false;
+            });
       },
 
       hoveredPointIndexChanged(index) {
@@ -240,11 +315,26 @@ export default {
       },
 
       selectedPointMoved(newPosition) {
-        // TODO
+        const datapoint = this.datapoints[this.selectedPointIndex];
+        datapoint.position = newPosition;
+        if (this.selectedLmds.distance_metric == 'cosine') {
+            this.datapoint.cosine = this.datapointCosine(datapoint);
+            this.sortDatapointsByCosine();
+        }
       }
     },
     computed: {
-        host() { return window.location.origin.split("/")[2].split(":")[0]; }
+        host() { return window.location.origin.split("/")[2].split(":")[0]; },
+
+        showNeighbors() {
+          if (this.selectedLmds == null) return false;
+          return this.selectedLmds.points_calculated;
+        },
+
+        distanceMetric() {
+          if (this.selectedLmds == null) return null;
+          return this.selectedLmds.distance_metric;
+        }
     }
 }
 </script>

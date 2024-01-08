@@ -1,6 +1,6 @@
 from flask import Flask, request
 from flask_cors import CORS
-from util.lmds import Lmds
+from lmds import Lmds
 from typing import Dict, List, Any
 from uuid import uuid4
 import pandas as pd

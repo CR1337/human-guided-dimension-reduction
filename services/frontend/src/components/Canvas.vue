@@ -13,7 +13,7 @@ import { Quadtree } from '@/util/quadtree.js';
 export default {
     name: 'Canvas',
     props: [
-        'datapoints', 'k'
+        'datapoints', 'k', 'showNeighbors', 'distanceMetric'
     ],
     data() {
         return {
@@ -112,42 +112,163 @@ export default {
         },
 
         drawPoints(p5) {
+            // Draw "normal" points
             for (const [i, datapoint] of this.datapoints.entries()) {
-                if (this.hoveredPointIndex == i)
-                    p5.fill(this.hoveredFill);
-                else if (this.selectedPointIndex == i) {
-                    p5.fill(this.selectedFill);
-                    p5.stroke(this.neighborStroke);
-                    for (const neighborIndex of this.knnIndices) {
-                        const datapoint = this.datapoints[neighborIndex];
-                        p5.line(
-                            (datapoint.position[0] + this.xTranslation) * this.scaling,
-                            (datapoint.position[1] + this.yTranslation) * this.scaling,
-                            (this.datapoints[i].position[0] + this.xTranslation) * this.scaling,
-                            (this.datapoints[i].position[1] + this.yTranslation) * this.scaling
-                        );
+                if ([this.selectedPointIndex, this.hoveredPointIndex].includes(i)) continue;
+                if (this.knnIndices.includes(i)) continue
+
+                let size, shape;
+                if (datapoint.is_landmark) {
+                    size = this.landmarkSize;
+                    shape = 'square';
+                } else {
+                    size = this.pointSize;
+                    shape = 'circle';
+                }
+
+                this.drawPoint(
+                    p5,
+                    datapoint.position[0], datapoint.position[1],
+                    size, this.fills[datapoint.label], null, shape
+                );
+            }
+
+            // Draw neighbor connections
+            if (this.showNeighbors) {
+                p5.stroke(this.neighborStroke);
+                for (const neighborIndex of this.knnIndices) {
+                    const datapoint = this.datapoints[neighborIndex];
+                    p5.line(
+                        (datapoint.position[0] + this.xTranslation) * this.scaling,
+                        (datapoint.position[1] + this.yTranslation) * this.scaling,
+                        (this.datapoints[this.selectedPointIndex].position[0] + this.xTranslation) * this.scaling,
+                        (this.datapoints[this.selectedPointIndex].position[1] + this.yTranslation) * this.scaling
+                    );
+                }
+            }
+
+            // Draw neighbors
+            for (let i of this.knnIndices) {
+                const datapoint = this.datapoints[i];
+
+                let size, shape;
+                if (datapoint.is_landmark) {
+                    size = this.landmarkSize;
+                    shape = 'square';
+                } else {
+                    size = this.pointSize;
+                    shape = 'circle';
+                }
+
+                const stroke = (this.showNeighbors) ? this.neighborStroke : null;
+
+                this.drawPoint(
+                    p5,
+                    datapoint.position[0], datapoint.position[1],
+                    size, this.fills[datapoint.label], stroke, shape
+                );
+            }
+
+            // Draw selected point
+            if (this.selectedPointIndex != null) {
+                const datapoint = this.datapoints[this.selectedPointIndex];
+
+                let size, shape;
+                if (datapoint.is_landmark) {
+                    size = this.landmarkSize;
+                    shape = 'square';
+                } else {
+                    size = this.pointSize;
+                    shape = 'circle';
+                }
+
+                this.drawPoint(
+                    p5,
+                    datapoint.position[0], datapoint.position[1],
+                    size, this.selectedFill, null, shape
+                );
+            }
+
+            // Draw hovered point
+            if (this.hoveredPointIndex != null) {
+                const datapoint = this.datapoints[this.hoveredPointIndex];
+
+                let size, shape;
+                if (datapoint.is_landmark) {
+                    size = this.landmarkSize;
+                    shape = 'square';
+                } else {
+                    size = this.pointSize;
+                    shape = 'circle';
+                }
+
+                this.drawPoint(
+                    p5,
+                    datapoint.position[0], datapoint.position[1],
+                    size, this.hoveredFill, null, shape
+                );
+            }
+        },
+
+        drawPoint(p5, x, y, size, fill, stroke, shape) {
+            p5.fill(fill);
+            (stroke == null) ? p5.noStroke() : p5.stroke(stroke);
+            if (shape == 'circle')
+                p5.circle(
+                    (x + this.xTranslation) * this.scaling,
+                    (y + this.yTranslation) * this.scaling,
+                    size
+                );
+            else if (shape == 'square')
+                p5.square(
+                    (x + this.xTranslation) * this.scaling,
+                    (y + this.yTranslation) * this.scaling,
+                    size
+                );
+        },
+
+        calculateCosineDistance(datapointA, dataPointB) {
+            return Math.abs(datapointA.cosine - dataPointB.cosine);
+        },
+
+        findKNearestNeighbors(datapoint) {
+            if (this.distanceMetric == 'euclidean') {
+                return this.quadtree.findKNearestNeighbors(
+                    datapoint.position[0],
+                    datapoint.position[1],
+                    this.k
+                );
+            } else if (this.distanceMetric == 'cosine') {
+                // FIXME: The result doesn't look right
+                const neighborIndices = [];
+                const length = this.datapoints.length;
+
+                let leftIndex = this.selectedPointIndex - 1;
+                let rightIndex = this.selectedPointIndex + 1;
+                let leftEdgeReached = leftIndex < 0;
+                let rightEdgeReached = rightIndex >= length;
+
+                for (let i = 0; i < this.k; ++i) {
+                    if (leftEdgeReached && rightEdgeReached) break;
+
+                    if (leftEdgeReached) {
+                        neighborIndices.push(rightIndex++);
+                        rightEdgeReached = rightIndex >= length;
+                    } else if (rightEdgeReached) {
+                        neighborIndices.push(leftIndex--);
+                        leftEdgeReached = leftIndex < 0;
+                    } else {
+                        if (this.calculateCosineDistance(datapoint, this.datapoints[leftIndex]) < this.calculateCosineDistance(datapoint, this.datapoints[rightIndex])) {
+                            neighborIndices.push(leftIndex--);
+                            leftEdgeReached = leftIndex < 0;
+                        } else {
+                            neighborIndices.push(rightIndex++);
+                            rightEdgeReached = rightIndex >= length;
+                        }
                     }
+                }
 
-                } else
-                    p5.fill(this.fills[datapoint.label]);
-
-                if (this.knnIndices.includes(i))
-                    p5.stroke(this.neighborStroke);
-                else
-                    p5.noStroke();
-
-                if (datapoint.is_landmark)
-                    p5.square(
-                        (datapoint.position[0] + this.xTranslation) * this.scaling,
-                        (datapoint.position[1] + this.yTranslation) * this.scaling,
-                        this.landmarkSize
-                    );
-                else
-                    p5.circle(
-                        (datapoint.position[0] + this.xTranslation) * this.scaling,
-                        (datapoint.position[1] + this.yTranslation) * this.scaling,
-                        this.pointSize
-                    );
+                return neighborIndices;
             }
         },
 
@@ -183,11 +304,7 @@ export default {
                 return;
             }
             const datapoint = this.datapoints[this.selectedPointIndex];
-            this.knnIndices = this.quadtree.findKNearestNeighbors(
-                datapoint.position[0],
-                datapoint.position[1],
-                this.k
-            )
+            this.knnIndices = this.findKNearestNeighbors(datapoint);
         }
     },
     mounted() {
