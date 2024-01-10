@@ -30,6 +30,8 @@ export default {
 
             knnIndices: [],
 
+            landmarkIndices: [],
+
             // CONSTANTS
             canvasWidth: 640,
             canvasHeight: 640,
@@ -76,11 +78,15 @@ export default {
                 this.scaling = (this.canvasHeight * (1.0 - this.margin)) / (maxY - minY);
             }
 
+            this.landmarkIndices = [];
             this.quadtree = new Quadtree(minX, minY, maxX, maxY);
             for (const [i, datapoint] of this.datapoints.entries()) {
                 const x = datapoint.position[0];
                 const y = datapoint.position[1];
                 this.quadtree.insert(x, y, i);
+                if (datapoint.is_landmark) {
+                    this.landmarkIndices.push(i);
+                }
             }
 
             this.changeTransformation(this.p5);
@@ -92,6 +98,15 @@ export default {
         },
 
         datapointIndexAtMouse(p5) {
+            for (const landmarkIndex of this.landmarkIndices) {
+                const datapoint = this.datapoints[landmarkIndex];
+                const px = (datapoint.position[0] + this.xTranslation) * this.scaling;
+                const py = (datapoint.position[1] + this.yTranslation) * this.scaling;
+                if (p5.dist(p5.mouseX, p5.mouseY, px, py) <= this.landmarkSize) {
+                    return landmarkIndex;
+                }
+            }
+
             if (this.quadtree == null) {
                 return null;
             }
@@ -104,8 +119,7 @@ export default {
                 const datapoint = this.datapoints[foundIndex];
                 const px = (datapoint.position[0] + this.xTranslation) * this.scaling;
                 const py = (datapoint.position[1] + this.yTranslation) * this.scaling;
-                const size = (datapoint.is_landmark) ? this.landmarkSize : this.pointSize;
-                if (p5.dist(p5.mouseX, p5.mouseY, px, py) <= size) {
+                if (p5.dist(p5.mouseX, p5.mouseY, px, py) <= this.pointSize) {
                     return foundIndex;
                 }
             }
