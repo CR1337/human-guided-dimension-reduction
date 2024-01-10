@@ -324,7 +324,7 @@ export default {
       }
     },
     computed: {
-        host() { return window.location.origin.split("/")[2].split(":")[0]; },
+        host() { return window.location.origin.split("/")[2]; },
 
         showNeighbors() {
           if (this.selectedLmds == null) return false;
