@@ -135,6 +135,7 @@ export default {
 
             // Draw "normal" points
             for (const [i, datapoint] of this.datapoints.entries()) {
+                if (i == this.selectedPointIndex) continue;
                 if ([this.selectedPointIndex, this.hoveredPointIndex].includes(i)) continue;
                 if (this.knnIndices.includes(i)) continue
 
@@ -175,6 +176,7 @@ export default {
 
             // Draw neighbors
             for (let i of this.knnIndices) {
+                if (i == this.selectedPointIndex) continue;
                 const datapoint = this.datapoints[i];
 
                 let size, shape, stroke;
@@ -232,7 +234,7 @@ export default {
             }
 
             // Draw hovered point
-            if (this.hoveredPointIndex != null) {
+            if (this.hoveredPointIndex != null  && this.hoveredPointIndex != this.selectedPointIndex) {
                 const datapoint = this.datapoints[this.hoveredPointIndex];
 
                 let size, shape, stroke;
