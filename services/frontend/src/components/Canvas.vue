@@ -27,10 +27,13 @@ export default {
             quadtree: null,
             selectedPointIndex: null,
             hoveredPointIndex: null,
+            landmarkIndices: [],
+
+            pointIsMoving: false,
+            newPosition: null,
 
             knnIndices: [],
 
-            landmarkIndices: [],
 
             // CONSTANTS
             canvasWidth: 640,
@@ -201,11 +204,14 @@ export default {
             if (this.selectedPointIndex != null) {
                 const datapoint = this.datapoints[this.selectedPointIndex];
 
+                const x = (this.pointIsMoving) ? this.newPosition[0] : datapoint.position[0];
+                const y = (this.pointIsMoving) ? this.newPosition[1] : datapoint.position[1];
+
                 let size, shape, stroke;
                 let is_landmark = false;
                 if (datapoint.is_landmark) {
                     landmarks.push({
-                        position: [datapoint.position[0], datapoint.position[1]],
+                        position: [x, y],
                         fill: this.selectedFill,
                         stroke: this.landmarkStroke
                     })
@@ -219,7 +225,7 @@ export default {
                 if (!is_landmark) {
                     this.drawPoint(
                         p5,
-                        datapoint.position[0], datapoint.position[1],
+                        x, y,
                         size, this.selectedFill, stroke, shape
                     );
                 }
@@ -333,9 +339,17 @@ export default {
             p5.text(p5.frameRate().toFixed(2) + " fps", 10, 10);
         },
         mouseDragged(p5, event) {
-            this.xTranslation += event.movementX / this.scaling;
-            this.yTranslation += event.movementY / this.scaling;
-            this.changeTransformation(p5);
+            if (this.selectedPointIndex == null || !this.datapoints[this.selectedPointIndex].is_landmark) {
+                this.xTranslation += event.movementX / this.scaling;
+                this.yTranslation += event.movementY / this.scaling;
+                this.changeTransformation(p5);
+            } else {
+                this.newPosition = [
+                    p5.mouseX / this.scaling - this.xTranslation,
+                    p5.mouseY / this.scaling - this.yTranslation
+                ]
+                this.pointIsMoving = true;
+            }
         },
         mouseMoved(p5, event) {
             this.hoveredPointIndex = this.datapointIndexAtMouse(p5);
@@ -346,7 +360,7 @@ export default {
             this.scaling += zoom;
             this.changeTransformation(p5);
         },
-        mouseReleased(p5) {
+        mousePressed(p5) {
             this.selectedPointIndex = this.datapointIndexAtMouse(p5);
             this.$emit('selectedPointIndexChanged', this.selectedPointIndex);
             if (this.selectedPointIndex == null) {
@@ -355,12 +369,19 @@ export default {
             }
             const datapoint = this.datapoints[this.selectedPointIndex];
             this.knnIndices = this.findKNearestNeighbors(datapoint);
+        },
+        mouseReleased(p5) {
+            if (!this.pointIsMoving) return;
+            this.$emit('selectedPointMoved', this.newPosition);
+            this.pointIsMoving = false;
+            this.newPosition = null;
         }
     },
     mounted() {
         const p5Script = p5 => {
             p5.setup = () => { this.p5 = p5; this.setup(p5); };
             p5.draw = () => { this.draw(p5); };
+            p5.mousePressed = () => { this.mousePressed(p5); };
             p5.mouseReleased = () => { this.mouseReleased(p5); };
             p5.mouseDragged = (event) => { this.mouseDragged(p5, event); };
             p5.mouseMoved = (event) => { this.mouseMoved(p5, event); }

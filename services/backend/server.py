@@ -120,7 +120,9 @@ def route_landmarks(lmds_id: str):
 
     elif request.method == 'PATCH':
         new_landmarks = pd.DataFrame(request.json['landmarks']).set_index('id')
-        lmds.landmarks.update(new_landmarks[['position', 'label']])
+        landmarks = lmds.landmarks
+        landmarks.update(new_landmarks[['position', 'label']])
+        lmds.landmarks = landmarks
         return {}, 200
 
 

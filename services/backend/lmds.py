@@ -76,6 +76,10 @@ class Lmds:
     def landmarks(self) -> pd.DataFrame:
         return self._landmarks
 
+    @landmarks.setter
+    def landmarks(self, landmarks: pd.DataFrame):
+        self._landmarks = landmarks
+
     @property
     def no_landmark_points(self) -> pd.DataFrame:
         return self._no_landmark_points
