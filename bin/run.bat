@@ -1,0 +1,1 @@
+docker comose up
