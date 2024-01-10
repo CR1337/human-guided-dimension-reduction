@@ -216,6 +216,7 @@ class Lmds:
             "heuristic": self._heuristic,
             "distance_metric": self._distance_metric,
             "num_landmarks": self._num_landmarks,
+            "do_pca": self._do_pca,
             "landmarks_selected": self.landmarks_selected,
             "landmarks_reduced": self.landmarks_reduced,
             "points_calculated": self.points_calculated,

@@ -78,7 +78,7 @@ def route_lmds():
         num_landmarks = request.json.get(
             'num_landmarks', DEFAULT_NUM_LANDMARKS
         )
-        do_pca = request.json.get('PCA', False)
+        do_pca = request.json.get('do_pca', False)
         lmds_id = str(uuid4())
         try:
             lmds = Lmds(
