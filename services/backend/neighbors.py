@@ -80,5 +80,5 @@ if __name__ == '__main__':
 
     print()
 
-    print("Get the 7 nearest euclidean neighbors of point 42")
+    print("Get the 7 nearest euclidean neighbors of point 42:")
     print("\n".join(str(n) for n in Neighbors.get(42, 7, 'euclidean')))
