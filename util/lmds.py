@@ -37,7 +37,7 @@ def parse_args():
     parser.add_argument(
         "--dataset",
         type=str,
-        default="imdb_embeddings.pkl",
+        default="volumes/data/imdb_embeddings.pkl",
         help="Path to the dataset.",
     )
     parser.add_argument(
@@ -83,7 +83,8 @@ def lmds(
 ):
     """
     Performs LMDS on the dataset.
-    This code is inspired from the LMDS paper: http://graphics.stanford.edu/courses/cs468-05-winter/Papers/Landmarks/Silva_landmarks5.pdf and https://github.com/thomasweighill/landmarkMDS/blob/master/LMDS.py
+    This code is inspired from the LMDS paper: http://graphics.stanford.edu/courses/cs468-05-winter/Papers/Landmarks/Silva_landmarks5.pdf
+    and https://github.com/thomasweighill/landmarkMDS/blob/master/LMDS.py and https://github.com/danilomotta/LMDS/blob/master/mds.py
     1. Select Landmarks
     2. Perform MDS on the landmarks
     3. Apply distance-based triangulation
@@ -93,6 +94,8 @@ def lmds(
     landmarks = None
     if heuristic == "random":
         landmarks = dataset.sample(n=num_landmarks)
+    elif heuristic == "first":
+        landmarks = dataset.head(num_landmarks)
     else:
         raise NotImplementedError(f"Unknown heuristic: {heuristic}")
 
@@ -102,20 +105,25 @@ def lmds(
     # with the shape (num_landmarks, embedding_dim)
     landmark_embeddings = np.vstack(landmarks['embeddings'].apply(np.array))
 
-    # Deltan is the distance matrix between the landmarks
-    delta_n = euclidean_distances(landmark_embeddings, landmark_embeddings)
+    # Deltan is the squared distance matrix between the landmarks
+    delta_n = euclidean_distances(landmark_embeddings, landmark_embeddings) ** 2
     # H is the mean centering matrix
-    H = delta_n - 1/num_landmarks
+    H = - np.ones((num_landmarks, num_landmarks))/num_landmarks
+    np.fill_diagonal(H,1-1/num_landmarks)
     # B is the mean centered "inner-product" matrix
-    B = -1/2 * H @ delta_n @ H
+    B = -1/2 * (H.dot(delta_n).dot(H))
     # We compute the eigenvalues and eigenvectors of B
-    eigenvalues, eigenvectors = np.linalg.eig(B)
+    eigenvalues, eigenvectors = np.linalg.eigh(B)
     # We sort the eigenvalues and eigenvectors by decreasing eigenvalues
     idx = eigenvalues.argsort()[::-1]
     eigenvalues = eigenvalues[idx]
     eigenvectors = eigenvectors[:, idx]
     # We compute the matrix L which is given
     # by eigenvectors * sqrt(eigenvalues)
+    pos_eigenvalues = eigenvalues[eigenvalues > 0]
+    if len(pos_eigenvalues) < dimension:
+        print(f"Error: Not enough positive eigenvalues for the selected dimension {dimension}.")
+        return []
     L = np.zeros((len(landmarks), dimension))
     for i in range(dimension):
         L[:, i] = eigenvectors[:, i] * np.sqrt(eigenvalues[i])
@@ -144,7 +152,7 @@ def lmds(
     # We compute for each point the distance to the landmarks
     distance_to_landmarks = euclidean_distances(
         other_embeddings, landmark_embeddings
-    )
+    ) ** 2
 
     # Going through each point, we compute its position
     # by -1/2 * L_sharp * (distance_to_landmarks - mean_distance)
