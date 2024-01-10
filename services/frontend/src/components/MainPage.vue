@@ -80,7 +80,7 @@
   <div>
     <b>Hovered Point</b><a style="color: #00ff00"> ⬤</a><br>
     id: <a v-if="hoveredPointIndex !== null">{{ datapoints[hoveredPointIndex].id }}</a><br>
-    position: <a v-if="hoveredPointIndex !== null">{{ datapoints[hoveredPointIndex].low_d_vector }}</a><br>
+    position: <a v-if="hoveredPointIndex !== null">{{ datapoints[hoveredPointIndex].position }}</a><br>
     label: <a v-if="hoveredPointIndex !== null">{{ datapoints[hoveredPointIndex].label }}</a><br>
     is_landmark: <a v-if="hoveredPointIndex !== null">{{ datapoints[hoveredPointIndex].is_landmark }}</a><br>
     text: <a v-if="hoveredPointIndex !== null">{{ datapoints[hoveredPointIndex].text }}</a><br>
@@ -90,7 +90,7 @@
   <div>
     <b>Selected Point</b><a style="color: #ff0000"> ⬤</a><br>
     id: <a v-if="selectedPointIndex !== null">{{ datapoints[selectedPointIndex].id }}</a><br>
-    position: <a v-if="selectedPointIndex !== null">{{ datapoints[selectedPointIndex].low_d_vector }}</a><br>
+    position: <a v-if="selectedPointIndex !== null">{{ datapoints[selectedPointIndex].position }}</a><br>
     label: <a v-if="selectedPointIndex !== null">{{ datapoints[selectedPointIndex].label }}</a><br>
     is_landmark: <a v-if="selectedPointIndex !== null">{{ datapoints[selectedPointIndex].is_landmark }}</a><br>
     text: <a v-if="selectedPointIndex !== null">{{ datapoints[selectedPointIndex].text }}</a><br>
