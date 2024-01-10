@@ -236,17 +236,23 @@ export default {
                 );
         },
 
-        calculateCosineDistance(datapointA, dataPointB) {
-            return Math.abs(datapointA.cosine - dataPointB.cosine);
-        },
+        // calculateCosineDistance(datapointA, dataPointB) {
+        //     return Math.abs(datapointA.cosine - dataPointB.cosine);
+        // },
 
-        calculateRealCosineDistance(datapointA, dataPointB) {
-            const a = datapointA.position;
-            const b = dataPointB.position;
-            const dotProduct = a[0] * b[0] + a[1] * b[1];
-            const aLength = Math.sqrt(a[0] * a[0] + a[1] * a[1]);
-            const bLength = Math.sqrt(b[0] * b[0] + b[1] * b[1]);
-            return 1.0 - (dotProduct / (aLength * bLength));
+        // calculateRealCosineDistance(datapointA, dataPointB) {
+        //     const a = datapointA.position;
+        //     const b = dataPointB.position;
+        //     const dotProduct = a[0] * b[0] + a[1] * b[1];
+        //     const aLength = Math.sqrt(a[0] * a[0] + a[1] * a[1]);
+        //     const bLength = Math.sqrt(b[0] * b[0] + b[1] * b[1]);
+        //     return 1.0 - (dotProduct / (aLength * bLength));
+        // },
+
+        relativeAbsoluteAngle(datapointA, dataPointB) {
+            let diff = Math.abs(datapointA.angle - dataPointB.angle);
+            if (diff > Math.PI) diff = (2 * Math.PI) - diff;
+            return Math.abs(diff);
         },
 
         findKNearestNeighbors(datapoint) {
@@ -257,46 +263,25 @@ export default {
                     this.k
                 );
             } else if (this.distanceMetric == 'cosine') {
-                // FIXME: The result doesn't look right
                 const neighborIndices = [];
                 const length = this.datapoints.length;
 
-                const cosines = [];
-                for (const [i, neighbor] of this.datapoints.entries()) {
-                    cosines.push({
-                        index: i,
-                        cosine: this.calculateRealCosineDistance(datapoint, neighbor)
-                    });
+                let leftIndex = (this.selectedPointIndex ==0)
+                    ? length - 1
+                    : this.selectedPointIndex - 1;
+                let rightIndex = (this.selectedPointIndex == length - 1)
+                    ? 0
+                    : this.selectedPointIndex + 1;
+
+                for (let i = 0; i < this.k; ++i) {
+                    if (this.relativeAbsoluteAngle(datapoint, this.datapoints[leftIndex]) < this.relativeAbsoluteAngle(datapoint, this.datapoints[rightIndex])) {
+                        neighborIndices.push(leftIndex--);
+                        if (leftIndex < 0) leftIndex = length - 1;
+                    } else {
+                        neighborIndices.push(rightIndex++);
+                        if (rightIndex >= length) rightIndex = 0;
+                    }
                 }
-                cosines.sort((a, b) => a.cosine - b.cosine);
-                neighborIndices.push(...cosines.slice(1, this.k + 1).map(c => c.index));
-
-
-                //let leftIndex = this.selectedPointIndex - 1;
-                //let rightIndex = this.selectedPointIndex + 1;
-                //let leftEdgeReached = leftIndex < 0;
-                //let rightEdgeReached = rightIndex >= length;
-//
-                //for (let i = 0; i < this.k; ++i) {
-                //    if (leftEdgeReached && rightEdgeReached) break;
-//
-                //    if (leftEdgeReached) {
-                //        neighborIndices.push(rightIndex++);
-                //        rightEdgeReached = rightIndex >= length;
-                //    } else if (rightEdgeReached) {
-                //        neighborIndices.push(leftIndex--);
-                //        leftEdgeReached = leftIndex < 0;
-                //    } else {
-                //        if (this.calculateCosineDistance(datapoint, this.datapoints[leftIndex]) < this.calculateCosineDistance(datapoint, this.datapoints[rightIndex])) {
-                //            neighborIndices.push(leftIndex--);
-                //            leftEdgeReached = leftIndex < 0;
-                //        } else {
-                //            neighborIndices.push(rightIndex++);
-                //            rightEdgeReached = rightIndex >= length;
-                //        }
-                //    }
-                //}
-
                 return neighborIndices;
             }
         },
@@ -304,12 +289,16 @@ export default {
         // P5 FUNCTIONS
         setup(p5) {
             p5.createCanvas(this.canvasWidth, this.canvasHeight);
+            p5.frameRate(24);
             p5.noStroke();
             p5.rectMode(p5.CENTER);
         },
         draw(p5) {
             p5.background(0);
             this.drawPoints(p5);
+            p5.fill('white');
+            p5.noStroke();
+            p5.text(p5.frameRate().toFixed(2) + " fps", 10, 10);
         },
         mouseDragged(p5, event) {
             this.xTranslation += event.movementX / this.scaling;

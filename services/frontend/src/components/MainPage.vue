@@ -244,8 +244,8 @@ export default {
                 this.selectedLmdsId = data.lmds.id;
                 this.selectedLmds = data.lmds;
                 if (this.selectedLmds.distance_metric == 'cosine') {
-                    this.calculateDatapointCosines();
-                    this.sortDatapointsByCosine();
+                    this.calculateDatapointAngles();
+                    this.sortDatapointsByAngle();
                 }
                 this.updateCanvas();
             }).catch((error) => {
@@ -255,32 +255,19 @@ export default {
             });
       },
 
-      datapointCosine(datapoint) {
-        // long version:
-        // const referenceVector = [1, 0];
-        // const referenceMagnitude = 1;
-        // const dotProduct = datapoint.position[0] * referenceVector[0] + datapoint.position[1] * referenceVector[1];
-        // const magnitude = Math.sqrt(datapoint.position[0] * datapoint.position[0] + datapoint.position[1] * datapoint.position[1]);
-        // return dotProduct / (magnitude * referenceMagnitude);
-
-        // short version with implicitly hardcoded reference vector:
-        const dotProduct = datapoint.position[0];
-        const magnitude = Math.sqrt(
-          datapoint.position[0] * datapoint.position[0]
-          + datapoint.position[1] * datapoint.position[1]
-        );
-        return dotProduct / magnitude;
+      datapointAngle(datapoint) {
+        return Math.atan2(datapoint.position[1], datapoint.position[0]);
       },
 
-      calculateDatapointCosines() {
+      calculateDatapointAngles() {
         for (const datapoint of this.datapoints) {
-          datapoint.cosine = this.datapointCosine(datapoint);
+          datapoint.angle = this.datapointAngle(datapoint);
         }
       },
 
-      sortDatapointsByCosine() {
+      sortDatapointsByAngle() {
         this.datapoints.sort((a, b) => {
-            return b.cosine - a.cosine;
+            return b.angle - a.angle;
         });
       },
 
@@ -318,8 +305,8 @@ export default {
         const datapoint = this.datapoints[this.selectedPointIndex];
         datapoint.position = newPosition;
         if (this.selectedLmds.distance_metric == 'cosine') {
-            this.datapoint.cosine = this.datapointCosine(datapoint);
-            this.sortDatapointsByCosine();
+            this.datapoint.angle = this.datapointAngle(datapoint);
+            this.sortDatapointsByAngle();
         }
       }
     },
