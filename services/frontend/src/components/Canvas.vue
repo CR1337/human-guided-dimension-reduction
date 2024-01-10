@@ -240,6 +240,15 @@ export default {
             return Math.abs(datapointA.cosine - dataPointB.cosine);
         },
 
+        calculateRealCosineDistance(datapointA, dataPointB) {
+            const a = datapointA.position;
+            const b = dataPointB.position;
+            const dotProduct = a[0] * b[0] + a[1] * b[1];
+            const aLength = Math.sqrt(a[0] * a[0] + a[1] * a[1]);
+            const bLength = Math.sqrt(b[0] * b[0] + b[1] * b[1]);
+            return 1.0 - (dotProduct / (aLength * bLength));
+        },
+
         findKNearestNeighbors(datapoint) {
             if (this.distanceMetric == 'euclidean') {
                 return this.quadtree.findKNearestNeighbors(
@@ -252,30 +261,41 @@ export default {
                 const neighborIndices = [];
                 const length = this.datapoints.length;
 
-                let leftIndex = this.selectedPointIndex - 1;
-                let rightIndex = this.selectedPointIndex + 1;
-                let leftEdgeReached = leftIndex < 0;
-                let rightEdgeReached = rightIndex >= length;
-
-                for (let i = 0; i < this.k; ++i) {
-                    if (leftEdgeReached && rightEdgeReached) break;
-
-                    if (leftEdgeReached) {
-                        neighborIndices.push(rightIndex++);
-                        rightEdgeReached = rightIndex >= length;
-                    } else if (rightEdgeReached) {
-                        neighborIndices.push(leftIndex--);
-                        leftEdgeReached = leftIndex < 0;
-                    } else {
-                        if (this.calculateCosineDistance(datapoint, this.datapoints[leftIndex]) < this.calculateCosineDistance(datapoint, this.datapoints[rightIndex])) {
-                            neighborIndices.push(leftIndex--);
-                            leftEdgeReached = leftIndex < 0;
-                        } else {
-                            neighborIndices.push(rightIndex++);
-                            rightEdgeReached = rightIndex >= length;
-                        }
-                    }
+                const cosines = [];
+                for (const [i, neighbor] of this.datapoints.entries()) {
+                    cosines.push({
+                        index: i,
+                        cosine: this.calculateRealCosineDistance(datapoint, neighbor)
+                    });
                 }
+                cosines.sort((a, b) => a.cosine - b.cosine);
+                neighborIndices.push(...cosines.slice(1, this.k + 1).map(c => c.index));
+
+
+                //let leftIndex = this.selectedPointIndex - 1;
+                //let rightIndex = this.selectedPointIndex + 1;
+                //let leftEdgeReached = leftIndex < 0;
+                //let rightEdgeReached = rightIndex >= length;
+//
+                //for (let i = 0; i < this.k; ++i) {
+                //    if (leftEdgeReached && rightEdgeReached) break;
+//
+                //    if (leftEdgeReached) {
+                //        neighborIndices.push(rightIndex++);
+                //        rightEdgeReached = rightIndex >= length;
+                //    } else if (rightEdgeReached) {
+                //        neighborIndices.push(leftIndex--);
+                //        leftEdgeReached = leftIndex < 0;
+                //    } else {
+                //        if (this.calculateCosineDistance(datapoint, this.datapoints[leftIndex]) < this.calculateCosineDistance(datapoint, this.datapoints[rightIndex])) {
+                //            neighborIndices.push(leftIndex--);
+                //            leftEdgeReached = leftIndex < 0;
+                //        } else {
+                //            neighborIndices.push(rightIndex++);
+                //            rightEdgeReached = rightIndex >= length;
+                //        }
+                //    }
+                //}
 
                 return neighborIndices;
             }
