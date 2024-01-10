@@ -326,9 +326,19 @@ export default {
             }
         },
 
+        mouseInsideCanvas(p5) {
+            return (
+                p5.mouseX >= 0 && p5.mouseX <= this.canvasWidth &&
+                p5.mouseY >= 0 && p5.mouseY <= this.canvasHeight
+            );
+        },
+
         // P5 FUNCTIONS
         setup(p5) {
-            p5.createCanvas(this.canvasWidth, this.canvasHeight);
+            const canvas = p5.createCanvas(this.canvasWidth, this.canvasHeight);
+            canvas.elt.addEventListener('wheel', (event) => {
+                event.preventDefault();
+            });
             p5.frameRate(24);
             p5.noStroke();
             p5.rectMode(p5.CENTER);
@@ -341,6 +351,9 @@ export default {
             p5.text(p5.frameRate().toFixed(2) + " fps", 10, 10);
         },
         mouseDragged(p5, event) {
+            if (!this.mouseInsideCanvas(p5)) {
+                this.mouseReleased(p5);
+            }
             if (this.selectedPointIndex == null || !this.datapoints[this.selectedPointIndex].is_landmark) {
                 this.xTranslation += event.movementX / this.scaling;
                 this.yTranslation += event.movementY / this.scaling;
@@ -354,15 +367,18 @@ export default {
             }
         },
         mouseMoved(p5, event) {
+            if (!this.mouseInsideCanvas(p5)) return;
             this.hoveredPointIndex = this.datapointIndexAtMouse(p5);
             this.$emit('hoveredPointIndexChanged', this.hoveredPointIndex);
         },
         mouseWheel(p5, event) {
+            if (!this.mouseInsideCanvas(p5)) return;
             const zoom = -event.delta * this.zoomSpeed;
             this.scaling += zoom;
             this.changeTransformation(p5);
         },
         mousePressed(p5) {
+            if (!this.mouseInsideCanvas(p5)) return;
             this.selectedPointIndex = this.datapointIndexAtMouse(p5);
             this.$emit('selectedPointIndexChanged', this.selectedPointIndex);
             if (this.selectedPointIndex == null) {
