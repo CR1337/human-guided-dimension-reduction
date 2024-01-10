@@ -43,7 +43,7 @@ typedef struct {
 } ThreadArgs;
 
 float dot(const float *v1, const float *v2) {
-    float result = 0.0;
+    float result = 0.0f;
     for (size_t i = 0; i < DIMENSION_AMOUNT; ++i) {
         result += v1[i] * v2[i];
     }
@@ -67,7 +67,7 @@ float euclideanDistance(const float *v1, const float *v2) {
 }
 
 float cosineDistance(const float *v1, const float *v2) {
-    return dot(v1, v2) / (norm(v1) * norm(v2));
+    return 1.0f - dot(v1, v2) / (norm(v1) * norm(v2));
 }
 
 FILE * openEmbeddingsFile(size_t *fileSize) {
@@ -156,6 +156,13 @@ void * threadHandler(void *args) {
                 sizeof(IndexDistancePair),
                 indexDistancePairCompare
             );
+
+            qsort(
+                &cosineNeighbors[rowOffset],
+                datapointAmount,
+                sizeof(IndexDistancePair),
+                indexDistancePairCompare
+            );
         }
     } else {
         for (size_t i = start; i < end; ++i) {
@@ -181,6 +188,13 @@ void * threadHandler(void *args) {
 
             qsort(
                 &euclideanNeighbors[rowOffset],
+                datapointAmount,
+                sizeof(IndexDistancePair),
+                indexDistancePairCompare
+            );
+
+            qsort(
+                &cosineNeighbors[rowOffset],
                 datapointAmount,
                 sizeof(IndexDistancePair),
                 indexDistancePairCompare
