@@ -267,19 +267,6 @@ export default {
                 );
         },
 
-        // calculateCosineDistance(datapointA, dataPointB) {
-        //     return Math.abs(datapointA.cosine - dataPointB.cosine);
-        // },
-
-        // calculateRealCosineDistance(datapointA, dataPointB) {
-        //     const a = datapointA.position;
-        //     const b = dataPointB.position;
-        //     const dotProduct = a[0] * b[0] + a[1] * b[1];
-        //     const aLength = Math.sqrt(a[0] * a[0] + a[1] * a[1]);
-        //     const bLength = Math.sqrt(b[0] * b[0] + b[1] * b[1]);
-        //     return 1.0 - (dotProduct / (aLength * bLength));
-        // },
-
         relativeAbsoluteAngle(datapointA, dataPointB) {
             let diff = Math.abs(datapointA.angle - dataPointB.angle);
             if (diff > Math.PI) diff = (2 * Math.PI) - diff;
