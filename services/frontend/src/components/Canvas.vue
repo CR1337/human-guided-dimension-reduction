@@ -240,6 +240,7 @@ export default {
             }
 
             // Draw landmarks
+            p5.strokeWeight(2);
             for (const landmark of landmarks) {
                 this.drawPoint(
                     p5,
