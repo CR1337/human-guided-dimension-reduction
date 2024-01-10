@@ -27,8 +27,13 @@ export default {
             quadtree: null,
             selectedPointIndex: null,
             hoveredPointIndex: null,
+            landmarkIndices: [],
+
+            pointIsMoving: false,
+            newPosition: null,
 
             knnIndices: [],
+
 
             // CONSTANTS
             canvasWidth: 640,
@@ -76,11 +81,15 @@ export default {
                 this.scaling = (this.canvasHeight * (1.0 - this.margin)) / (maxY - minY);
             }
 
+            this.landmarkIndices = [];
             this.quadtree = new Quadtree(minX, minY, maxX, maxY);
             for (const [i, datapoint] of this.datapoints.entries()) {
                 const x = datapoint.position[0];
                 const y = datapoint.position[1];
                 this.quadtree.insert(x, y, i);
+                if (datapoint.is_landmark) {
+                    this.landmarkIndices.push(i);
+                }
             }
 
             this.changeTransformation(this.p5);
@@ -92,6 +101,15 @@ export default {
         },
 
         datapointIndexAtMouse(p5) {
+            for (const landmarkIndex of this.landmarkIndices) {
+                const datapoint = this.datapoints[landmarkIndex];
+                const px = (datapoint.position[0] + this.xTranslation) * this.scaling;
+                const py = (datapoint.position[1] + this.yTranslation) * this.scaling;
+                if (p5.dist(p5.mouseX, p5.mouseY, px, py) <= this.landmarkSize) {
+                    return landmarkIndex;
+                }
+            }
+
             if (this.quadtree == null) {
                 return null;
             }
@@ -104,7 +122,7 @@ export default {
                 const datapoint = this.datapoints[foundIndex];
                 const px = (datapoint.position[0] + this.xTranslation) * this.scaling;
                 const py = (datapoint.position[1] + this.yTranslation) * this.scaling;
-                if (p5.dist(p5.mouseX, p5.mouseY, px, py) < this.pointSize) {
+                if (p5.dist(p5.mouseX, p5.mouseY, px, py) <= this.pointSize) {
                     return foundIndex;
                 }
             }
@@ -113,16 +131,22 @@ export default {
         },
 
         drawPoints(p5) {
+            const landmarks = [];
+
             // Draw "normal" points
             for (const [i, datapoint] of this.datapoints.entries()) {
+                if (i == this.selectedPointIndex) continue;
                 if ([this.selectedPointIndex, this.hoveredPointIndex].includes(i)) continue;
                 if (this.knnIndices.includes(i)) continue
 
                 let size, shape, stroke;
                 if (datapoint.is_landmark) {
-                    size = this.landmarkSize;
-                    shape = 'square';
-                    stroke = this.landmarkStroke;
+                    landmarks.push({
+                        position: [datapoint.position[0], datapoint.position[1]],
+                        fill: this.fills[datapoint.label],
+                        stroke: this.landmarkStroke
+                    })
+                    continue;
                 } else {
                     size = this.pointSize;
                     shape = 'circle';
@@ -152,13 +176,17 @@ export default {
 
             // Draw neighbors
             for (let i of this.knnIndices) {
+                if (i == this.selectedPointIndex) continue;
                 const datapoint = this.datapoints[i];
 
                 let size, shape, stroke;
                 if (datapoint.is_landmark) {
-                    size = this.landmarkSize;
-                    shape = 'square';
-                    stroke = this.landmarkStroke;
+                    landmarks.push({
+                        position: [datapoint.position[0], datapoint.position[1]],
+                        fill: this.fills[datapoint.label],
+                        stroke: (this.showNeighbors) ? this.neighborStroke : this.landmarkStroke
+                    })
+                    continue;
                 } else {
                     size = this.pointSize;
                     shape = 'circle';
@@ -178,43 +206,68 @@ export default {
             if (this.selectedPointIndex != null) {
                 const datapoint = this.datapoints[this.selectedPointIndex];
 
+                const x = (this.pointIsMoving) ? this.newPosition[0] : datapoint.position[0];
+                const y = (this.pointIsMoving) ? this.newPosition[1] : datapoint.position[1];
+
                 let size, shape, stroke;
+                let is_landmark = false;
                 if (datapoint.is_landmark) {
-                    size = this.landmarkSize;
-                    shape = 'square';
-                    stroke = this.landmarkStroke;
+                    landmarks.push({
+                        position: [x, y],
+                        fill: this.selectedFill,
+                        stroke: this.landmarkStroke
+                    })
+                    is_landmark = true;
                 } else {
                     size = this.pointSize;
                     shape = 'circle';
                     stroke = null;
                 }
 
-                this.drawPoint(
-                    p5,
-                    datapoint.position[0], datapoint.position[1],
-                    size, this.selectedFill, stroke, shape
-                );
+                if (!is_landmark) {
+                    this.drawPoint(
+                        p5,
+                        x, y,
+                        size, this.selectedFill, stroke, shape
+                    );
+                }
             }
 
             // Draw hovered point
-            if (this.hoveredPointIndex != null) {
+            if (this.hoveredPointIndex != null  && this.hoveredPointIndex != this.selectedPointIndex) {
                 const datapoint = this.datapoints[this.hoveredPointIndex];
 
                 let size, shape, stroke;
+                let is_landmark = false;
                 if (datapoint.is_landmark) {
-                    size = this.landmarkSize;
-                    shape = 'square';
-                    stroke = this.landmarkStroke;
+                    landmarks.push({
+                        position: [datapoint.position[0], datapoint.position[1]],
+                        fill: this.hoveredFill,
+                        stroke: this.landmarkStroke
+                    })
+                    is_landmark = true;
                 } else {
                     size = this.pointSize;
                     shape = 'circle';
                     stroke = null;
                 }
 
+                if (!is_landmark) {
+                    this.drawPoint(
+                        p5,
+                        datapoint.position[0], datapoint.position[1],
+                        size, this.hoveredFill, stroke, shape
+                    );
+                }
+            }
+
+            // Draw landmarks
+            p5.strokeWeight(2);
+            for (const landmark of landmarks) {
                 this.drawPoint(
                     p5,
-                    datapoint.position[0], datapoint.position[1],
-                    size, this.hoveredFill, stroke, shape
+                    landmark.position[0], landmark.position[1],
+                    this.landmarkSize, landmark.fill, landmark.stroke, 'square'
                 );
             }
         },
@@ -235,19 +288,6 @@ export default {
                     size
                 );
         },
-
-        // calculateCosineDistance(datapointA, dataPointB) {
-        //     return Math.abs(datapointA.cosine - dataPointB.cosine);
-        // },
-
-        // calculateRealCosineDistance(datapointA, dataPointB) {
-        //     const a = datapointA.position;
-        //     const b = dataPointB.position;
-        //     const dotProduct = a[0] * b[0] + a[1] * b[1];
-        //     const aLength = Math.sqrt(a[0] * a[0] + a[1] * a[1]);
-        //     const bLength = Math.sqrt(b[0] * b[0] + b[1] * b[1]);
-        //     return 1.0 - (dotProduct / (aLength * bLength));
-        // },
 
         relativeAbsoluteAngle(datapointA, dataPointB) {
             let diff = Math.abs(datapointA.angle - dataPointB.angle);
@@ -301,9 +341,17 @@ export default {
             p5.text(p5.frameRate().toFixed(2) + " fps", 10, 10);
         },
         mouseDragged(p5, event) {
-            this.xTranslation += event.movementX / this.scaling;
-            this.yTranslation += event.movementY / this.scaling;
-            this.changeTransformation(p5);
+            if (this.selectedPointIndex == null || !this.datapoints[this.selectedPointIndex].is_landmark) {
+                this.xTranslation += event.movementX / this.scaling;
+                this.yTranslation += event.movementY / this.scaling;
+                this.changeTransformation(p5);
+            } else {
+                this.newPosition = [
+                    p5.mouseX / this.scaling - this.xTranslation,
+                    p5.mouseY / this.scaling - this.yTranslation
+                ]
+                this.pointIsMoving = true;
+            }
         },
         mouseMoved(p5, event) {
             this.hoveredPointIndex = this.datapointIndexAtMouse(p5);
@@ -314,7 +362,7 @@ export default {
             this.scaling += zoom;
             this.changeTransformation(p5);
         },
-        mouseReleased(p5) {
+        mousePressed(p5) {
             this.selectedPointIndex = this.datapointIndexAtMouse(p5);
             this.$emit('selectedPointIndexChanged', this.selectedPointIndex);
             if (this.selectedPointIndex == null) {
@@ -323,12 +371,19 @@ export default {
             }
             const datapoint = this.datapoints[this.selectedPointIndex];
             this.knnIndices = this.findKNearestNeighbors(datapoint);
+        },
+        mouseReleased(p5) {
+            if (!this.pointIsMoving) return;
+            this.$emit('selectedPointMoved', this.newPosition);
+            this.pointIsMoving = false;
+            this.newPosition = null;
         }
     },
     mounted() {
         const p5Script = p5 => {
             p5.setup = () => { this.p5 = p5; this.setup(p5); };
             p5.draw = () => { this.draw(p5); };
+            p5.mousePressed = () => { this.mousePressed(p5); };
             p5.mouseReleased = () => { this.mouseReleased(p5); };
             p5.mouseDragged = (event) => { this.mouseDragged(p5, event); };
             p5.mouseMoved = (event) => { this.mouseMoved(p5, event); }
