@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@datastructures-js/priority-queue": "^6.3.0",
     "p5": "^1.9.0",
     "vue": "^3.3.4",
     "vue-router": "^4.2.5"

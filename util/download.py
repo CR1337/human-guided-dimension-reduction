@@ -2,8 +2,9 @@ from datasets import load_dataset
 
 
 def download_dataset(dataset_name):
-    dataset = load_dataset(dataset_name, split=["train"], cache_dir="~/datasets")
-    return dataset
+    return load_dataset(
+        dataset_name, split=["train"], cache_dir="./volumes/data/cache"
+    )
 
 
 def save_dataset(dataset, dataset_name):
@@ -12,9 +13,10 @@ def save_dataset(dataset, dataset_name):
 
 
 def main():
-    dataset = download_dataset("imdb")[0]
+    dataset_name = "imdb"
+    dataset = download_dataset(dataset_name)[0]
     print(len(dataset))
-    save_dataset(dataset, "imdb")
+    save_dataset(dataset, f"./volumes/data/{dataset_name}")
 
 
 if __name__ == "__main__":

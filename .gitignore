@@ -1,2 +1,5 @@
 .vscode
 .venv
+volumes/data/**
+!volumes/data/.gitkeep
+!volumes/data/cache/.gitkeep
