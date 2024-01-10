@@ -34,6 +34,10 @@
           <label for="num-landmarks">Number of Landmarks: </label>
           <input v-model="newNumLandmarks" type="number" name="num-landmarks" min="1" max="1000" step="1">
           <br>
+
+          <label for="doPCA">Optional PCA normalisation: </label>
+          <input v-model="doPCA" type="checkbox" name="doPCA">
+          <br>
           <button @click="newLmds()" :disabled="busy">New LMDS</button>
         </div>
         <br>
@@ -47,6 +51,7 @@
           heuristic: <a v-if="selectedLmdsId !== null">{{ selectedLmds.heuristic }}</a><br>
           distance metric: <a v-if="selectedLmdsId !== null">{{ selectedLmds.distance_metric }}</a><br>
           num landmarks: <a v-if="selectedLmdsId !== null">{{ selectedLmds.num_landmarks }}</a><br>
+          Optional PCA normalisation: <a v-if="selectedLmdsId !== null">{{ selectedLmds.do_PCA }}</a><br>
           points calculated: <a v-if="selectedLmdsId !== null">{{ selectedLmds.points_calculated }}</a><br>
           <button @click="deleteLmds()" :disabled="selectedLmdsId == null || busy">Delete</button>
         </div>
@@ -133,6 +138,7 @@ export default {
           newHeuristic: null,
           newDistanceMetric: null,
           newNumLandmarks: 10,
+          doPCA: false,
 
           datapoints: [],
 
@@ -159,7 +165,8 @@ export default {
             body: JSON.stringify({
                 heuristic: this.newHeuristic,
                 distance_metric: this.newDistanceMetric,
-                num_landmarks: this.newNumLandmarks
+                num_landmarks: this.newNumLandmarks,
+                do_PCA: this.doPCA
             })
         }).then((response) => {
             return response.json();
