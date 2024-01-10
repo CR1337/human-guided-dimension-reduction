@@ -115,22 +115,27 @@ class Lmds:
             self._landmarks['embeddings'].apply(np.array)
         )
 
-        # Deltan is the distance matrix between the landmarks
+        # Deltan is the squared distance matrix between the landmarks
         self._delta_n = self._distance_metric_func(
             self._landmark_embeddings, self._landmark_embeddings
-        )
+        ) ** 2
         # H is the mean centering matrix
-        H = self._delta_n - 1 / self._num_landmarks
+        H = - np.ones((self._num_landmarks, self._num_landmarks))/self._num_landmarks
+        np.fill_diagonal(H,1-1/self._num_landmarks)
         # B is the mean centered "inner-product" matrix
-        B = -1/2 * H @ self._delta_n @ H
+        B = -1/2 * (H.dot(self._delta_n).dot(H))
         # We compute the eigenvalues and eigenvectors of B
-        self._eigenvalues, self._eigenvectors = np.linalg.eig(B)
+        self._eigenvalues, self._eigenvectors = np.linalg.eigh(B)
         # We sort the eigenvalues and eigenvectors by decreasing eigenvalues
         idx = self._eigenvalues.argsort()[::-1]
         self._eigenvalues = self._eigenvalues[idx]
         self._eigenvectors = self._eigenvectors[:, idx]
         # We compute the matrix L which is given
         # by self._eigenvectors * sqrt(self._eigenvalues)
+        pos_eigenvalues = self._eigenvalues[self._eigenvalues > 0]
+        if len(pos_eigenvalues) < self._dimension:
+            print(f"Error: Not enough positive eigenvalues for the selected dimension {self._dimension}.")
+            return []
         L = np.zeros((len(self._landmarks), self._dimension))
         for i in range(self._dimension):
             L[:, i] = self._eigenvectors[:, i] * np.sqrt(self._eigenvalues[i])
@@ -168,7 +173,7 @@ class Lmds:
         # We compute for each point the distance to the landmarks
         distance_to_landmarks = self._distance_metric_func(
             other_embeddings, self._landmark_embeddings
-        )
+        ) ** 2
 
         # Going through each point, we compute its position
         # by -1/2 * L_sharp * (distance_to_landmarks - mean_distance)
