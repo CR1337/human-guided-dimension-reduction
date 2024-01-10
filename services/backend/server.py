@@ -78,13 +78,15 @@ def route_lmds():
         num_landmarks = request.json.get(
             'num_landmarks', DEFAULT_NUM_LANDMARKS
         )
+        do_pca = request.json.get('do_pca', False)
         lmds_id = str(uuid4())
         try:
             lmds = Lmds(
                 heuristic=heuristic,
                 distance_metric=distance_metric,
                 num_landmarks=num_landmarks,
-                dataset=imdb_dataset
+                dataset=imdb_dataset,
+                do_pca=do_pca
             )
         except NotImplementedError as ex:
             return {"message": str(ex)}, 501
