@@ -1,0 +1,3 @@
+#!/bin/sh
+
+gcc neighbors2d.c -o neighbors2d -lm -lpthread -Ofast -msse2 -mfpmath=sse -ftree-vectorizer-verbose=5 -march=native -ffast-math -flto
