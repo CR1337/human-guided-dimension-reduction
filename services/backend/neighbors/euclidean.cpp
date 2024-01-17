@@ -126,10 +126,10 @@ void findEuclideanNeighbors2D(
     DistanceIndexPair *distanceIndexPairs,
     Index *ranks
 ) {
-    float minX = std::numeric_limits<float>::max();
-    float minY = std::numeric_limits<float>::max();
-    float maxX = std::numeric_limits<float>::min();
-    float maxY = std::numeric_limits<float>::min();
+    float minX = 99999999;
+    float minY = 99999999;
+    float maxX = -99999999;
+    float maxY = -99999999;
     for (size_t i = 0; i < datapointAmount; ++i) {
         Position2D *position = &positions[i];
         if (position->x < minX) minX = position->x;

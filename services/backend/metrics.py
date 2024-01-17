@@ -1,79 +1,65 @@
 import pandas as pd
-import matplotlib.pyplot as plt
 from typing import List, Tuple
-from sklearn.metrics.pairwise import euclidean_distances, cosine_distances
-import heapq
-import numpy as np
 
-from neighbors import Neighbors
+from neighbors import Neighbors, ComputedNeighbors, CachedNeighbors
 from lmds import Lmds
 
 # The metrics are based on: "Toward a Quantitative Survey of Dimension Reduction Techniques" (DOI: 10.1109/TVCG.2019.2944182)
 # and their implementation in: https://github.com/mespadoto/proj-quant-eval/blob/master/code/01_data_collection/metrics.py
 
-def _get_high_dimensional_neighbors(point_index: int, distance_metric: str, k: int) -> List[Tuple[int, float]]:
-    return Neighbors.get(point_index=point_index, k=k, distance_metric=distance_metric)
-
-def _get_low_dimensional_neighbors(point_index:int, data: pd.DataFrame, distance_metric: str, k: int) -> List[Tuple[int, float]]:
-    if distance_metric == "euclidean":
-        distance_metric_func = euclidean_distances
-    elif distance_metric == "cosine":
-        distance_metric_func = cosine_distances
-
-    # We need to convert the data to a numpy array, because the distance_metric_func needs a 2D array
-    neighbors = heapq.nsmallest(k + 1, [(distance_metric_func(np.array(data.iloc[point_index]).reshape(1,-1), np.array(data.iloc[i]).reshape(1,-1)), i) for i in range(len(data))]) # This function requires ca. 5 seconds per example
-    return [i for __, i in neighbors if i != point_index]
+class Metrics:
+    def __init__(self, data: pd.DataFrame, distance_metric: str, k: int = 7) -> None:
+        self.ld_neighbors = ComputedNeighbors(distance_metric=distance_metric, k=k, dimensions=Neighbors.DIMENSIONS_2D, dataset=data)
+        self.hd_neighbors = CachedNeighbors.all_neighbors_768d(distance_metric=distance_metric)
+        self.data = data
+        self.distance_metric = distance_metric
+        self.k = k
+        self.N = len(data)
 
 
-def trustworthiness(data: pd.DataFrame, distance_metric: str, k: int = 7) -> float:
-    N = len(data)
-    
-    outer_sum = 0
-    for i in range(N):
-        hd_neighbors = _get_high_dimensional_neighbors(i, distance_metric, k)
-        hd_neighbors = [n[0] for n in hd_neighbors]
-        ld_neighbors = _get_low_dimensional_neighbors(i, data, distance_metric, k)
-        inner_sum = 0
-        for j, ld_n in enumerate(ld_neighbors):
-            if ld_n not in hd_neighbors:
-                inner_sum += j - k # TODO: After reviewing the code: It should be the index of the neighbor in the high dimensional space
-        outer_sum += inner_sum
-    # In this formula the paper and code differ. The paper has a small n at (2*n-3*k-1). The code version was choosen.
-    return 1 - 2/(N * k * (2*N - 3*k - 1)) * outer_sum
+    def get_trustworthiness_and_continuity(self) -> Tuple[float, float]:
+        # Get the rank matrix in the high and low dimensional space
+        ld_rank = self.ld_neighbors.get_ranks()
+        hd_rank = self.hd_neighbors.get_ranks()
 
-def continuity(data: pd.DataFrame, distance_metric: str, k: int = 7) -> float:
-    N = len(data)
-    outer_sum = 0
-    for i in range(N):
-        hd_neighbors = _get_high_dimensional_neighbors(i, distance_metric, k)[:,0]
-        ld_neighbors = _get_low_dimensional_neighbors(i, data, distance_metric, k)[:,0]
-        inner_sum = 0
-        for j, hd_n in enumerate(hd_neighbors):
-            if hd_n not in ld_neighbors:
-                inner_sum += j - k
-        outer_sum += inner_sum
-    # In this formula the paper and code differ. The paper has a small n at (2*n-3*k-1). The code version was choosen.
-    return 1 - 2/(N * k * (2*N - 3*k - 1)) * outer_sum
+        t_outer_sum = 0
+        c_outer_sum = 0
+        # In this formula the paper and code differ. The paper has a small n at (2*n-3*k-1). The code version was choosen.
+        factor = 2/(self.N * self.k * (2*self.N - 3*self.k - 1))
+        for i in range(self.N):
+            ld_knn = [neighbor[0] for neighbor in self.ld_neighbors.get_k_neighbors(i)]
+            hd_knn = [neighbor[0] for neighbor in self.hd_neighbors.get_k_neighbors(i)]
+            hd_nn = next(hd_rank)
+            ld_nn = next(ld_rank)
 
-def normalized_stress(data: pd.DataFrame, distance_metric: str) -> float:
-    return 0.7
+            # Again paper and code differ. The paper defines r as the rank the point j has in regards to i in the low dimensional space, while the code version uses the rank in the high dimensional space. The code version was choosen.
+            U = set(ld_knn) - set(hd_knn)
+            t_outer_sum += sum(hd_nn[j] - self.k for j in U)
 
-def neighborhood_hit(data: pd.DataFrame, distance_metric: str, k: int = 7) -> float:
-    return 0.6
+            U_hat = set(hd_knn) - set(ld_knn)
+            c_outer_sum += sum(ld_nn[j] - self.k for j in U_hat)
 
-def shepard_diagram(data: pd.DataFrame, distance_metric: str) -> List[Tuple[float]]:
-    # scatterplot with matplotlib
-    return 0.5
+        return (1 - factor * t_outer_sum, 1 - factor * c_outer_sum)
 
-def shepard_diagram_plot(data: List[Tuple[float]]) -> str:
-    # scatterplot with matplotlib
-    return 0.5 #filehandle
+    def normalized_stress(data: pd.DataFrame, distance_metric: str) -> float:
+        return 0.7
 
-def shepard_goodness(data: List[Tuple[float]]) -> float:
-    return 0.4
+    def neighborhood_hit(data: pd.DataFrame, distance_metric: str, k: int = 7) -> float:
+        return 0.6
 
-def average_local_error(data: pd.DataFrame, distance_metric: str) -> List[float]:
-    return 0.3
+    def shepard_diagram(data: pd.DataFrame, distance_metric: str) -> List[Tuple[float]]:
+        # scatterplot with matplotlib
+        return 0.5
+
+    def shepard_diagram_plot(data: List[Tuple[float]]) -> str:
+        # scatterplot with matplotlib
+        return 0.5 #filehandle
+
+    def shepard_goodness(data: List[Tuple[float]]) -> float:
+        return 0.4
+
+    def average_local_error(data: pd.DataFrame, distance_metric: str) -> List[float]:
+        return 0.3
 
 def wait_for_debugger(port: int = 56789):
     """
@@ -91,8 +77,8 @@ def wait_for_debugger(port: int = 56789):
     debugpy.wait_for_client()
 
 if __name__ == '__main__':
-    Neighbors.FILENAME = './volumes/data/imdb_{distance_metric}_neighbors.bin'
-    # wait_for_debugger()
+    CachedNeighbors.ALL_NEIGHBORS_768D_FILENAME = './volumes/data/imdb_{distance_metric}_neighbors.bin'
+    #wait_for_debugger()
     import pickle
 
     with open("./volumes/data/imdb_embeddings.pkl", "rb") as file:
@@ -117,8 +103,6 @@ if __name__ == '__main__':
     print()
 
     lmds.calculate()
-    dataset = lmds.all_points["position"].sort_index()
-    # points = np.array([np.array(point) for point in dataset])
-    # distance = euclidean_distances(points) # This function gets killed on my machine
-
-    trustworthiness(dataset, "euclidean")
+    dataset = lmds.all_points.sort_index()
+    metrics = Metrics(dataset, "euclidean", 2)
+    print(metrics.get_trustworthiness_and_continuity())
