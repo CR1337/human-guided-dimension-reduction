@@ -253,6 +253,12 @@ export default {
                 if (this.selectedLmds.distance_metric == 'cosine') {
                     this.calculateDatapointAngles();
                     this.sortDatapointsByAngle();
+                } else {
+                  // shuffle datapoints
+                  for (let i = this.datapoints.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [this.datapoints[i], this.datapoints[j]] = [this.datapoints[j], this.datapoints[i]];
+                  }
                 }
                 this.updateCanvas();
             }).catch((error) => {

@@ -3,3 +3,4 @@
 volumes/data/**
 !volumes/data/.gitkeep
 !volumes/data/cache/.gitkeep
+*.pyc
