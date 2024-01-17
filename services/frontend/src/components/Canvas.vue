@@ -34,6 +34,8 @@ export default {
 
             knnIndices: [],
 
+            needRerender: false,
+            timeSinceLastFpsUpdate: 0,
 
             // CONSTANTS
             canvasWidth: 640,
@@ -47,7 +49,10 @@ export default {
             hoveredFill: [0, 255, 0],
             selectedFill: [255, 0, 0],
             neighborStroke: [255, 0, 0],
-            landmarkStroke: [0, 255, 255]
+            landmarkStroke: [0, 255, 255],
+
+            maxFramerate: 60,
+            fpsUpdatePeriod: 250  // ms
         }
     },
     methods: {
@@ -100,6 +105,10 @@ export default {
             }
 
             this.changeTransformation(this.p5);
+
+            this.$nextTick(() => {
+                this.needRerender = true;
+            });
         },
 
         changeTransformation(p5) {
@@ -380,17 +389,23 @@ export default {
             canvas.elt.addEventListener('wheel', (event) => {
                 event.preventDefault();
             });
-            p5.frameRate(24);
+            p5.frameRate(this.maxFramerate);
             p5.noStroke();
             p5.rectMode(p5.CENTER);
+            this.needRerender = true;
         },
         draw(p5) {
-            p5.background(0);
-            this.drawAxes(p5);
-            this.drawPoints(p5);
-            p5.fill('white');
-            p5.noStroke();
-            p5.text(p5.frameRate().toFixed(2) + " fps", 10, 10);
+            this.timeSinceLastFpsUpdate += p5.deltaTime;
+            if (this.timeSinceLastFpsUpdate >= this.fpsUpdatePeriod) {
+                this.timeSinceLastFpsUpdate = 0;
+                this.$emit('framerateChanged', p5.frameRate().toFixed(2));
+            }
+            if (this.needRerender) {
+                p5.background(0);
+                this.drawAxes(p5);
+                this.drawPoints(p5);
+                this.needRerender = false;
+            }
         },
         mouseDragged(p5, event) {
             if (!this.mouseInsideCanvas(p5)) {
@@ -405,17 +420,23 @@ export default {
                 this.knnIndices = [];
                 this.pointIsMoving = true;
             }
+            this.needRerender = true;
         },
         mouseMoved(p5, event) {
             if (!this.mouseInsideCanvas(p5)) return;
+            const oldHoveredPointIndex = this.hoveredPointIndex;
             this.hoveredPointIndex = this.datapointIndexAtMouse(p5);
             this.$emit('hoveredPointIndexChanged', this.hoveredPointIndex);
+            if (oldHoveredPointIndex != this.hoveredPointIndex) {
+                this.needRerender = true;
+            }
         },
         mouseWheel(p5, event) {
             if (!this.mouseInsideCanvas(p5)) return;
             const zoom = -event.delta * this.zoomSpeed;
             this.scaling += zoom;
             this.changeTransformation(p5);
+            this.needRerender = true;
         },
         mousePressed(p5) {
             if (!this.mouseInsideCanvas(p5)) return;
@@ -428,6 +449,7 @@ export default {
             }
             const datapoint = this.datapoints[this.selectedPointIndex];
             this.knnIndices = this.findKNearestNeighbors(datapoint);
+            this.needRerender = true;
         },
         mouseReleased(p5) {
             if (!this.pointIsMoving) return;
@@ -437,7 +459,7 @@ export default {
             this.pointIsMoving = false;
             this.newPosition = null;
             });
-
+            this.needRerender = true;
         }
     },
     mounted() {
