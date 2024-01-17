@@ -1,0 +1,5 @@
+#!/bin/sh
+
+g++ neighbors/neighbors.cpp neighbors/quadtree.cpp neighbors/euclidean.cpp neighbors/cosine.cpp \
+    -o neighbors/neighbors -Wall -lm -lpthread \
+    -Ofast -msse2 -mfpmath=sse -ftree-vectorizer-verbose=5 -march=native -ffast-math -flto
