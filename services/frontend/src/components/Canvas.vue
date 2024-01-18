@@ -397,7 +397,9 @@ export default {
         draw(p5) {
             this.timeSinceLastFpsUpdate += p5.deltaTime;
             if (this.timeSinceLastFpsUpdate >= this.fpsUpdatePeriod) {
-                this.timeSinceLastFpsUpdate = 0;
+                while (this.timeSinceLastFpsUpdate >= this.fpsUpdatePeriod) {
+                    this.timeSinceLastFpsUpdate -= this.fpsUpdatePeriod;
+                }
                 this.$emit('framerateChanged', p5.frameRate().toFixed(2));
             }
             if (this.needRerender) {
