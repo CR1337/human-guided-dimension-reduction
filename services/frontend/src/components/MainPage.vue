@@ -15,7 +15,9 @@
           @hovered-point-index-changed="hoveredPointIndexChanged"
           @selected-point-index-changed="selectedPointIndexChanged"
           @selected-point-moved="selectedPointMoved"
+          @framerate-changed="framerateChanged"
         />
+        <div>{{ framerate }} fps</div>
       </td>
       <td style="vertical-align:top">
         <div>
@@ -151,7 +153,8 @@ export default {
 
           k: 7,
 
-          busy: false
+          busy: false,
+          framerate: 0
         };
     },
     methods: {
@@ -321,6 +324,10 @@ export default {
             this.datapoint.angle = this.datapointAngle(datapoint);
             this.sortDatapointsByAngle();
         }
+      },
+
+      framerateChanged(framerate) {
+        this.framerate = framerate;
       }
     },
     computed: {
