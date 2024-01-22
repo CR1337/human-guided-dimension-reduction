@@ -1,5 +1,6 @@
 import pandas as pd
 from typing import List, Tuple
+import numpy as np
 
 from neighbors import Neighbors, ComputedNeighbors, CachedNeighbors
 from lmds import Lmds
@@ -41,25 +42,31 @@ class Metrics:
 
         return (1 - factor * t_outer_sum, 1 - factor * c_outer_sum)
 
-    def normalized_stress(data: pd.DataFrame, distance_metric: str) -> float:
-        return 0.7
+    def neighborhood_hit(self) -> float:
+        # Pseudocode: mean(mean(1 if label(j) == label(i) else 0 for j in neighbors(i)) for i in range(N)
+        return np.mean(np.mean(1 if self.data.iloc[j]['label'] == self.data.iloc[i]['label'] else 0 for j in [neighbor[0] for neighbor in self.ld_neighbors.get_k_neighbors(i)]) for i in range(self.N))
 
-    def neighborhood_hit(data: pd.DataFrame, distance_metric: str, k: int = 7) -> float:
-        return 0.6
-
-    def shepard_diagram(data: pd.DataFrame, distance_metric: str) -> List[Tuple[float]]:
-        # scatterplot with matplotlib
+    def shepard_diagram(self) -> List[Tuple[float]]:
+        # TODO: The Shepard diagram is a scatterplot of the pairwise (euclidean) distances between all points in P(D) versus the corresponding distances in D. We would need all point pair distances in the high and low dimensional space
         return 0.5
 
-    def shepard_diagram_plot(data: List[Tuple[float]]) -> str:
+    def shepard_diagram_plot(self) -> str:
         # scatterplot with matplotlib
+        # TODO: See shepard_diagram
         return 0.5 #filehandle
 
-    def shepard_goodness(data: List[Tuple[float]]) -> float:
+    def shepard_goodness(self) -> float:
+        # TODO: Does not make sense without shepard_diagram
         return 0.4
 
-    def average_local_error(data: pd.DataFrame, distance_metric: str) -> List[float]:
+    def average_local_error(self) -> List[float]:
+        # TODO: We would need all point pair distances in the high and low dimensional space
         return 0.3
+
+    def normalized_stress(self) -> float:
+        # TODO: Problem we would need all point pair distances in the high and low dimensional space
+        # Formula: np.sum((high_dist - low_dist)**2) / np.sum(high_dist**2)
+        return 0.7
 
 def wait_for_debugger(port: int = 56789):
     """
