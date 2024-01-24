@@ -4,7 +4,6 @@ import numpy as np
 import random
 
 from neighbors import Neighbors, ComputedNeighbors, CachedNeighbors
-from lmds import Lmds
 
 # The metrics are based on: "Toward a Quantitative Survey of Dimension Reduction Techniques" (DOI: 10.1109/TVCG.2019.2944182)
 # and their implementation in: https://github.com/mespadoto/proj-quant-eval/blob/master/code/01_data_collection/metrics.py
@@ -25,12 +24,12 @@ class Metrics:
         self.data = data
         self.N = len(data)
 
-        self.ld_neighbors = ComputedNeighbors(distance_metric=self.distance_metric, k=k, dimensions=Neighbors.DIMENSIONS_2D, dataset=data)
+        self.ld_neighbors = ComputedNeighbors(distance_metric=self.distance_metric, k=self.N -1, dimensions=Neighbors.DIMENSIONS_2D, dataset=data)
         trustworthiness, continuity = self.get_trustworthiness_and_continuity(k)
         metric =  {
             "trustworthiness": trustworthiness,
             "continuity": continuity,
-            "neighborhood_hit": self.neighborhood_hit(k),
+            "neighborhood_hit": 0.3,#self.neighborhood_hit(k),
             "shepard_goodness": self.shepard_goodness(k),
             "average_local_error": self.average_local_error(k),
             "normalized_stress": self.normalized_stress(k),
@@ -49,8 +48,13 @@ class Metrics:
         # In this formula the paper and code differ. The paper has a small n at (2*n-3*k-1). The code version was choosen.
         factor = 2/(self.N * k * (2*self.N - 3*k - 1))
         for i in range(self.N):
-            ld_knn = [neighbor[0] for neighbor in self.ld_neighbors.get_k_neighbors(i)]
-            hd_knn = [neighbor[0] for neighbor in self.hd_neighbors.get_k_neighbors(i)[:k]]
+            ld_knn = []
+            hd_knn = []
+            for j, neighbors in enumerate(zip(self.ld_neighbors.get_k_neighbors(i), self.hd_neighbors.get_k_neighbors(i))):
+                if j >= k:
+                    break
+                ld_knn.append(neighbors[0][0])
+                hd_knn.append(neighbors[1][0])
             hd_nn = next(hd_rank)
             ld_nn = next(ld_rank)
 
@@ -88,49 +92,3 @@ class Metrics:
         # TODO: Problem we would need all point pair distances in the high and low dimensional space
         # Formula: np.sum((high_dist - low_dist)**2) / np.sum(high_dist**2)
         return 0.7
-
-def wait_for_debugger(port: int = 56789):
-    """
-    Pauses the program until a remote debugger is attached.
-    Should only be called on rank0.
-    """
-
-    import debugpy
-
-    debugpy.listen(("0.0.0.0", port))
-    print(
-        f"Waiting for client to attach on port {port}... NOTE: if using "
-        f"docker, you need to forward the port with -p {port}:{port}."
-    )
-    debugpy.wait_for_client()
-
-if __name__ == '__main__':
-    CachedNeighbors.ALL_NEIGHBORS_768D_FILENAME = './volumes/data/imdb_{distance_metric}_neighbors.bin'
-    #wait_for_debugger()
-    import pickle
-
-    with open("./volumes/data/imdb_embeddings.pkl", "rb") as file:
-        dataset = pickle.load(file)
-
-    dataset_length = len(dataset)
-    print(f"Dataset Length: {dataset_length}")
-    print()
-
-    lmds = Lmds(
-        heuristic="random",
-        distance_metric="euclidean",
-        num_landmarks=10,
-        dataset=dataset,
-        do_pca=False,
-    )
-
-    lmds.select_landmarks()
-    lmds.reduce_landmarks()
-    print("Landmarks:")
-    print(lmds.landmarks)
-    print()
-
-    lmds.calculate()
-    dataset = lmds.all_points.sort_index()
-    metrics = Metrics(dataset, "euclidean", 2)
-    print(metrics.get_trustworthiness_and_continuity())

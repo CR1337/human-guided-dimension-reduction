@@ -4,6 +4,7 @@ from sklearn.metrics.pairwise import euclidean_distances, cosine_distances
 from typing import Any, Callable, Dict, List
 
 from metrics import Metrics
+from neighbors import CachedNeighbors
 
 def random_landmarks_heuristic(
     dataset: pd.DataFrame, num_landmarks: int
@@ -42,7 +43,12 @@ class Lmds:
         dimension: int = 2,
         do_pca: bool = False,
         use_small: bool = True,
+        debug: bool = False,
     ):
+        if debug:
+            wait_for_debugger()
+            CachedNeighbors.ALL_NEIGHBORS_768D_FILENAME = './volumes/data/imdb_{distance_metric}_neighbors_small.bin'
+
         self._heuristic = heuristic
         if heuristic == "random":
             self._heuristic_func = random_landmarks_heuristic
@@ -108,7 +114,7 @@ class Lmds:
     def points_calculated(self) -> bool:
         return self._no_landmark_points is not None
 
-    def compute_metrics(self, k) -> Dict[str, Any]:
+    def compute_metrics(self, k: int) -> Dict[str, Any]:
         if not self.points_calculated:
             raise RuntimeError("Points not calculated!")
         return self._metrics.calculate_all_metrics(self.all_points, k)
@@ -236,11 +242,25 @@ class Lmds:
             "points_calculated": self.points_calculated,
         }
 
+def wait_for_debugger(port: int = 56789):
+    """
+    Pauses the program until a remote debugger is attached.
+    Should only be called on rank0.
+    """
+
+    import debugpy
+
+    debugpy.listen(("0.0.0.0", port))
+    print(
+        f"Waiting for client to attach on port {port}... NOTE: if using "
+        f"docker, you need to forward the port with -p {port}:{port}."
+    )
+    debugpy.wait_for_client()
 
 if __name__ == "__main__":
     import pickle
 
-    with open("./volumes/data/imdb_embeddings.pkl", "rb") as file:
+    with open("./volumes/data/imdb_embeddings_small.pkl", "rb") as file:
         dataset = pickle.load(file)
 
     dataset_length = len(dataset)
@@ -253,6 +273,7 @@ if __name__ == "__main__":
         num_landmarks=10,
         dataset=dataset,
         do_pca=False,
+        debug=True,
     )
 
     lmds.select_landmarks()
@@ -264,3 +285,4 @@ if __name__ == "__main__":
     lmds.calculate()
     print("All points:")
     print(lmds.all_points)
+    metrics = lmds.compute_metrics(7)
