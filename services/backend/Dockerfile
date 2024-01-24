@@ -5,6 +5,13 @@ WORKDIR /server
 COPY requirements.txt requirements.txt
 RUN pip3 install -r requirements.txt
 
-COPY . /server/
+COPY ./compile-neighbors /server/
+COPY ./neighbors /server/neighbors
+
+RUN chmod +x /server/compile-neighbors
+RUN ./compile-neighbors
+RUN chmod +x /server/neighbors/neighbors
+
+COPY ./*.py /server/
 
 CMD ["python3", "server.py"]

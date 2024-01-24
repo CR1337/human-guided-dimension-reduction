@@ -1,84 +1,508 @@
-import math
+import io
+import gc
+import os
+import mmap
 import struct
-from typing import List, Tuple
+import sysv_ipc
+import subprocess
+import pandas as pd
+from abc import ABC
+from typing import Dict, Generator, Tuple, List
 
 
-class Neighbors:
+DistanceIndexPairGenerator = Generator[Tuple[int, float], None, None]
+RanksGenerator = Generator[List[int], None, None]
 
-    FROM_START_OF_FILE: int = 0
-    FROM_END_OF_FILE: int = 2
 
-    STRUCT_FORMAT: str = 'If'
-    STRUCT_SIZE: int = struct.calcsize(STRUCT_FORMAT)
+class Neighbors(ABC):
 
-    FILENAME: str = '/server/data/imdb_{distance_metric}_neighbors.bin'
+    DIMENSIONS_2D: int = 2
+    DIMENSIONS_768: int = 768
 
-    @classmethod
-    def _get_point_amount(cls, file) -> int:
-        file.seek(0, cls.FROM_END_OF_FILE)
-        file_size = file.tell()
-        file.seek(0, cls.FROM_START_OF_FILE)
-        return int(math.sqrt(file_size / cls.STRUCT_SIZE))
+    PARAMETER_FORMAT: str = "=bHHH"
+    POSITION_2D_FORMAT: str = f"={DIMENSIONS_2D}f"
+    POSITION_768D_FORMAT: str = f"={DIMENSIONS_768}f"
+    DISTANCE_INDEX_PAIR_FORMAT: str = "=Hf"
+    INDEX_FORMAT: str = "=H"
 
-    @classmethod
-    def _get_point_offset(cls, point_index: int, point_amount: int) -> int:
-        return point_index * cls.STRUCT_SIZE * point_amount
+    PARAMETER_SIZE: int = struct.calcsize(PARAMETER_FORMAT)
+    POSITION_2D_SIZE: int = struct.calcsize(POSITION_2D_FORMAT)
+    POSITION_768D_SIZE: int = struct.calcsize(POSITION_768D_FORMAT)
+    DISTANCE_INDEX_PAIR_SIZE: int = struct.calcsize(DISTANCE_INDEX_PAIR_FORMAT)
+    INDEX_SIZE: int = struct.calcsize(INDEX_FORMAT)
 
-    @classmethod
-    def _raise_on_point_index_and_k(
-        cls, point_index: int, k: int, point_amount: int
+    DISTANCE_METRICS: Dict[str, str] = {
+        "euclidean": "e",
+        "cosine": "c"
+    }
+    REVERSE_DISTANCE_METRICS: Dict[str, str] = {
+        "e": "euclidean",
+        "c": "cosine"
+    }
+
+    _distance_metric: str
+    _datapoint_amount: int
+    _k: int
+    _dimensions: int
+
+    _memory_view: memoryview
+
+    @property
+    def distance_metric(self) -> str:
+        return self._distance_metric
+
+    @property
+    def datapoint_amount(self) -> int:
+        return self._datapoint_amount
+
+    @property
+    def k(self) -> int:
+        return self._k
+
+    @property
+    def dimensions(self) -> int:
+        return self._dimensions
+
+    def __init__(
+        self,
+        distance_metric: str,
+        datapoint_amount: int,
+        k: int,
+        dimensions: int
     ):
-        if point_index < 0 or point_index >= point_amount:
+        self._memory_view = None
+        self._raise_for_distance_metric(distance_metric)
+        self._distance_metric = distance_metric
+        self._raise_for_datapoint_amount(datapoint_amount)
+        self._datapoint_amount = datapoint_amount
+        self._raise_for_k(k)
+        self._k = k
+        self._raise_for_dimensions(dimensions)
+        self._dimensions = dimensions
+
+    def __del__(self):
+        if self._memory_view is not None:
+            self._memory_view.release()
+
+    def _raise_for_distance_metric(self, distance_metric: str):
+        if distance_metric not in self.DISTANCE_METRICS:
             raise ValueError(
-                f'`point_index` must be between 0 and {point_amount - 1}!'
+                f"Invalid distance metric: {distance_metric}. "
+                f"Valid distance metrics: {self.DISTANCE_METRICS.keys()}"
             )
-        if k < 0 or k >= point_amount:
+
+    def _raise_for_datapoint_amount(self, datapoint_amount: int):
+        if datapoint_amount <= 0:
             raise ValueError(
-                f'`k` must be between 0 and {point_amount - 1}!'
+                f"Invalid datapoint amount: {datapoint_amount}. "
+                "Datapoint amount must be > 0."
             )
 
-    @classmethod
-    def get(
-        cls, point_index: int, k: int, distance_metric: str
-    ) -> List[Tuple[int, float]]:
-        '''
-        Returns the `k` nearest neighbors of the point with index `point_index`
-        using the distance metric `distance_metric`.
+    def _raise_for_k(self, k: int):
+        if k <= 0:
+            raise ValueError(
+                f"Invalid k: {k}. "
+                "k must be greater than 0."
+            )
+        if k > self._datapoint_amount - 1:
+            raise ValueError(
+                f"Invalid k: {k}. "
+                f"k must be <= {self._datapoint_amount - 1}."
+            )
 
-        The neighbors are returned as a list of tuples, where the first element
-        is the index of the neighbor and the second element is the distance to
-        the neighbor.
+    def _raise_for_dimensions(self, dimensions: int):
+        if dimensions not in (self.DIMENSIONS_2D, self.DIMENSIONS_768):
+            raise ValueError(
+                f"Invalid dimensions: {dimensions}. "
+                f"Valid dimensions: {self.DIMENSIONS_2D},"
+                f" {self.DIMENSIONS_768}"
+            )
 
-        The neighbors are sorted by distance, with the nearest neighbor first.
+    @property
+    def _position_size(self) -> int:
+        if self._dimensions == self.DIMENSIONS_2D:
+            return self.POSITION_2D_SIZE
+        elif self._dimensions == self.DIMENSIONS_768:
+            return self.POSITION_768D_SIZE
 
-        Raises a `ValueError` if `point_index` or `k` are out of bounds.
-        '''
-        filename = cls.FILENAME.format(distance_metric=distance_metric)
+    @property
+    def _positions_size(self) -> int:
+        return self._position_size * self._datapoint_amount
 
-        with open(filename, 'rb') as file:
-            point_amount = cls._get_point_amount(file)
-            cls._raise_on_point_index_and_k(point_index, k, point_amount)
-            offset = cls._get_point_offset(point_index, point_amount)
+    @property
+    def _available_neighbor_count(self) -> int:
+        return min(self._k + 1, self._datapoint_amount)
 
-            file.seek(offset + cls.STRUCT_SIZE, cls.FROM_START_OF_FILE)
-            neighbors = [
-                struct.unpack(cls.STRUCT_FORMAT, file.read(cls.STRUCT_SIZE))
-                for _ in range(k)
+    @property
+    def _distance_index_pairs_size(self) -> int:
+        return (
+            self.DISTANCE_INDEX_PAIR_SIZE
+            * self._datapoint_amount
+            * self._available_neighbor_count
+        )
+
+    @property
+    def _ranks_size(self) -> int:
+        return self.INDEX_SIZE * self._datapoint_amount ** 2
+
+    @property
+    def _positions_offset(self) -> int:
+        return self.PARAMETER_SIZE
+
+    def _get_distance_index_pairs_offset(self, index: int) -> int:
+        return (
+            self._positions_offset + self._positions_size
+            + self.DISTANCE_INDEX_PAIR_SIZE
+            * self._available_neighbor_count * index
+        )
+
+    def _get_ranks_offset(self, index: int) -> int:
+        return (
+            self._positions_offset + self._positions_size
+            + self._distance_index_pairs_size
+            + self.INDEX_SIZE * self._datapoint_amount * index
+        )
+
+    def _raise_for_index(self, index: int) -> None:
+        if index >= self._datapoint_amount:
+            raise IndexError(
+                f"Index {index} out of range (0, {self._datapoint_amount})"
+            )
+
+    def get_position(self, index: int) -> Tuple[float, ...]:
+        """
+        Returns the position of the datapoint at the given index.
+
+        :param index: The index of the datapoint.
+
+        :return: The position of the datapoint as tuple of floats.
+        """
+        self._raise_for_index(index)
+        offset = self._positions_offset + self._position_size * index
+        position_format = (
+            self.POSITION_2D_FORMAT
+            if self._dimensions == self.DIMENSIONS_2D
+            else self.POSITION_768D_FORMAT
+        )
+        position = struct.unpack(
+            position_format,
+            self._memory_view[
+                offset: offset + self._position_size
             ]
+        )
+        return position
 
+    def get_k_neighbors(self, index: int) -> DistanceIndexPairGenerator:
+        """
+        Returns the k nearest neighbors of the datapoint at the given index.
+
+        :param index: The index of the datapoint.
+
+        :return: The k nearest neighbors of the datapoint as tuple of
+            (index, distance) pairs.
+        """
+        self._raise_for_index(index)
+        offset = self._get_distance_index_pairs_offset(index)
+        neighbors = (
+            struct.unpack(
+                self.DISTANCE_INDEX_PAIR_FORMAT,
+                self._memory_view[
+                    offset + self.DISTANCE_INDEX_PAIR_SIZE * (i + 1):
+                    offset + self.DISTANCE_INDEX_PAIR_SIZE * (i + 2)
+                ]
+            )
+            for i in range(self._k)
+        )
         return neighbors
 
+    def _get_ranks(self, index: int) -> List[int]:
+        offset = self._get_ranks_offset(index)
+        ranks = [
+            struct.unpack(
+                self.INDEX_FORMAT,
+                self._memory_view[
+                    offset + self.INDEX_SIZE * i:
+                    offset + self.INDEX_SIZE * (i + 1)
+                ]
+            )[0]
+            for i in range(self._datapoint_amount)
+        ]
+        return ranks
 
-if __name__ == '__main__':
-    # Set the filename to work outside of docker
-    Neighbors.FILENAME = './volumes/data/imdb_{distance_metric}_neighbors.bin'
+    def get_ranks(self) -> RanksGenerator:
+        """
+        Returns the ranks of all datapoints.
+        The rank a a points nearest neighbor is 1. The rank of `0`
+        refers to the point itself.
 
-    # Examples:
+        :return: The ranks of all datapoints as generator of lists of integers.
+        """
+        return (
+            self._get_ranks(i)
+            for i in range(self._datapoint_amount)
+        )
 
-    print("Get the 10 nearest cosine neighbors of point 0:")
-    print("\n".join(str(n) for n in Neighbors.get(0, 10, 'cosine')))
+
+class ComputedNeighbors(Neighbors):
+
+    SHARED_MEMORY_ACCESS_MODE: int = 0o666
+
+    NEIGHBORS_EXECUTABLE_PATH: str = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "neighbors", "neighbors"
+    )
+
+    _dataset: pd.DataFrame
+
+    _shared_memory: sysv_ipc.SharedMemory
+
+    def __init__(
+        self,
+        distance_metric: str,
+        k: int,
+        dimensions: int,
+        dataset: pd.DataFrame
+    ):
+        self._raise_for_dataset(dataset, dimensions)
+        self._dataset = dataset
+
+        super().__init__(
+            distance_metric,
+            len(dataset),
+            k,
+            dimensions
+        )
+
+        self._shared_memory = sysv_ipc.SharedMemory(
+            None,
+            flags=sysv_ipc.IPC_CREX,
+            size=self._shared_memory_size,
+            mode=self.SHARED_MEMORY_ACCESS_MODE
+        )
+
+        self._write_shared_memory()
+        self._compute_neighbors()
+        self._read_shared_memory()
+
+    def __del__(self):
+        super().__del__()
+        if self._shared_memory is not None:
+            self._shared_memory.remove()
+        gc.collect()
+
+    @property
+    def _input_size(self) -> int:
+        return self.PARAMETER_SIZE + self._positions_size
+
+    @property
+    def _output_size(self) -> int:
+        return self._distance_index_pairs_size + self._ranks_size
+
+    @property
+    def _shared_memory_size(self) -> int:
+        return self._input_size + self._output_size
+
+    def _raise_for_dataset(self, dataset: pd.DataFrame, dimensions: int):
+        if dimensions == self.DIMENSIONS_2D:
+            if 'position' not in dataset.columns:
+                raise ValueError(
+                    "Invalid dataset: position column missing."
+                )
+        elif dimensions == self.DIMENSIONS_768:
+            if 'embeddings' not in dataset.columns:
+                raise ValueError(
+                    "Invalid dataset: embedding column missing."
+                )
+
+    def _write_shared_memory(self):
+        buffer = bytearray(self._input_size)
+        struct.pack_into(
+            self.PARAMETER_FORMAT,
+            buffer,
+            0,
+            ord(self.DISTANCE_METRICS[self._distance_metric]),
+            self._datapoint_amount,
+            self._k,
+            self._dimensions
+        )
+        position_key = (
+            'position'
+            if self._dimensions == self.DIMENSIONS_2D
+            else 'embeddings'
+        )
+        position_format = (
+            self.POSITION_2D_FORMAT
+            if self._dimensions == self.DIMENSIONS_2D
+            else self.POSITION_768D_FORMAT
+        )
+        for i, row in self._dataset.iterrows():
+            offset = self._positions_offset + self._position_size * i
+            struct.pack_into(
+                position_format,
+                buffer,
+                offset,
+                *row[position_key]
+            )
+        self._shared_memory.write(buffer)
+
+    def _compute_neighbors(self):
+        process = subprocess.Popen(
+            [
+                self.NEIGHBORS_EXECUTABLE_PATH,
+                str(self._shared_memory.key),
+                str(self._shared_memory.size)
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        process.wait()
+        if process.returncode != 0:
+            stdout, stderr = process.communicate()
+            raise RuntimeError(
+                f'{self.NEIGHBORS_EXECUTABLE_PATH} returned with '
+                f'code {process.returncode}!\n'
+                f'stdout:\n{stdout.decode("utf-8")}\n\n'
+                f'stderr:\n{stderr.decode("utf-8")}'
+            )
+
+    def _read_shared_memory(self):
+        buffer = bytearray(self._shared_memory.read(self._shared_memory_size))
+        self._shared_memory.remove()
+        self._shared_memory = None
+        self._memory_view = memoryview(buffer)
+
+    def dump(self, filename: str):
+        with open(filename, 'wb') as file:
+            file.write(self._memory_view)
+
+
+class CachedNeighbors(Neighbors):
+
+    ENTIRE_FILE: int = 0
+    SMALL_SUFFIX: str = "_small"
+    ALL_NEIGHBORS_768D_FILENAME: str = (
+        "/server/data/imdb_{distance_metric}_neighbors{small_suffix}.bin"
+    )
+
+    _file: io.BufferedReader
+    _memory_map: mmap.mmap
+
+    @classmethod
+    def all_neighbors_768d(cls, distance_metric: str, use_small: bool = False):
+        return cls(cls.ALL_NEIGHBORS_768D_FILENAME.format(
+            distance_metric=distance_metric,
+            small_suffix=cls.SMALL_SUFFIX if use_small else ""
+        ))
+
+    def __init__(self, filename: str):
+        self._memory_map = None
+        self._memory_view = None
+        self._file = None
+
+        self._file = open(filename, 'rb')
+        super().__init__(*self._read_parameters())
+        self._map_file()
+
+    def __del__(self):
+        super().__del__()
+        if self._memory_map is not None:
+            self._memory_map.close()
+        if self._file is not None:
+            self._file.close()
+        gc.collect()
+
+    def _read_parameters(self) -> Tuple[str, int, int, int]:
+        buffer = self._file.read(self.PARAMETER_SIZE)
+        paremeters = struct.unpack(self.PARAMETER_FORMAT, buffer)
+        parameters = (
+            self.REVERSE_DISTANCE_METRICS[chr(paremeters[0])],
+            *paremeters[1:]
+        )
+        return parameters
+
+    def _map_file(self):
+        self._memory_map = mmap.mmap(
+            self._file.fileno(),
+            self.ENTIRE_FILE,
+            access=mmap.ACCESS_READ
+        )
+        self._memory_view = memoryview(self._memory_map)
+
+
+if __name__ == "__main__":
+    # Change directory for testing outside of docker
+    CachedNeighbors.ALL_NEIGHBORS_768D_FILENAME = (
+        "./volumes/data/imdb_{distance_metric}_neighbors{small_suffix}.bin"
+    )
+
+    # dummy dataset
+    dataset_2d = pd.DataFrame([
+        {'position': (0.1, 0.9)},
+        {'position': (1.0, 0.0)},
+        {'position': (0.0, 1.0)},
+        {'position': (1.0, 1.0)},
+        {'position': (2.0, 2.0)},
+        {'position': (3.0, 3.0)},
+        {'position': (4.0, 4.0)},
+    ])
+
+    # compute 5 nearest euclidean neighbors and all ranks
+    euclidean_neighbors_2d = ComputedNeighbors(
+        distance_metric="euclidean",
+        k=5,
+        dimensions=Neighbors.DIMENSIONS_2D,
+        dataset=dataset_2d
+    )
+    euclidean_neighbors_2d.dump("euclidean.bin")
+    for point_index in range(len(dataset_2d)):
+        print(euclidean_neighbors_2d.get_position(point_index))
+        print(list(euclidean_neighbors_2d.get_k_neighbors(point_index)))
+        print(list(euclidean_neighbors_2d.get_ranks()))
+        print()
+    # if you don't need it anymore, you should delete it
+    del euclidean_neighbors_2d
 
     print()
+    print()
+    print()
 
-    print("Get the 7 nearest euclidean neighbors of point 42:")
-    print("\n".join(str(n) for n in Neighbors.get(42, 7, 'euclidean')))
+    # compute 5 nearest cosine neighbors and all ranks
+    cosine_neighbors_2d = ComputedNeighbors(
+        distance_metric="cosine",
+        k=5,
+        dimensions=Neighbors.DIMENSIONS_2D,
+        dataset=dataset_2d
+    )
+    cosine_neighbors_2d.dump("cosine.bin")
+    for point_index in range(len(dataset_2d)):
+        print(cosine_neighbors_2d.get_position(point_index))
+        print(list(cosine_neighbors_2d.get_k_neighbors(point_index)))
+        print(list(cosine_neighbors_2d.get_ranks()))
+        print()
+    # if you don't need it anymore, you should delete it
+    del cosine_neighbors_2d
+
+    print()
+    print()
+    print()
+
+    # load cached euclidean neighbors
+    euclidean_neighbors_768d = CachedNeighbors.all_neighbors_768d(
+        distance_metric="euclidean"
+    )
+    # You can access it like the ComputedNeighbors class
+
+    # if you don't need it anymore, you should delete it
+    del euclidean_neighbors_768d
+
+    print()
+    print()
+    print()
+
+    # load cached cosine neighbors
+    cosine_neighbors_768d = CachedNeighbors.all_neighbors_768d(
+        distance_metric="cosine"
+    )
+    # You can access it like the ComputedNeighbors class
+
+    # if you don't need it anymore, you should delete it
+    del cosine_neighbors_768d

@@ -64,9 +64,14 @@
         </div>
         <br>
 
-        <div>
+        <div :disabled="selectedLmds == null || !selectedLmds.points_calculated">
           <label for="k">k: </label>
-          <input v-model="k" type="number" name="k" min="1" max="1000" step="1">
+          <input v-model="k" type="number" name="k" min="1" max="1000" step="1" @change="kChanged"><br>
+          trustworthiness: <a v-if="metrics !== null">{{ metrics.trustworthiness.toFixed(metricsDecimalPlaces) }}</a><br>
+          continuity: <a v-if="metrics !== null">{{ metrics.continuity.toFixed(metricsDecimalPlaces) }}</a><br>
+          neighborhood hit: <a v-if="metrics !== null">{{ metrics.neighborhood_hit.toFixed(metricsDecimalPlaces) }}</a><br>
+          shepard goodness: <a v-if="metrics !== null">{{ metrics.shepard_goodness.toFixed(metricsDecimalPlaces) }}</a><br>
+          normalized stress: <a v-if="metrics !== null">{{ metrics.normalized_stress.toFixed(metricsDecimalPlaces) }}</a><br>
         </div>
         <br>
 
@@ -147,6 +152,7 @@ export default {
           lmdsIds: [],
           selectedLmdsId: null,
           selectedLmds: null,
+          metrics: null,
 
           hoveredPointIndex: null,
           selectedPointIndex: null,
@@ -154,7 +160,7 @@ export default {
           k: 7,
 
           busy: false,
-          framerate: 0
+          metricsDecimalPlaces: 3
         };
     },
     methods: {
@@ -264,10 +270,26 @@ export default {
                   }
                 }
                 this.updateCanvas();
+                this.getMetrics();
             }).catch((error) => {
                 console.error(error);
             }).finally(() => {
                 this.busy = false;
+            });
+      },
+
+      kChanged() {
+        this.getMetrics();
+      },
+
+      getMetrics() {
+        fetch(`http://${this.host}:5000/lmds/${this.selectedLmdsId}/metrics?k=${this.k}`)
+            .then((response) => {
+                return response.json();
+            }).then((data) => {
+                this.metrics = data.metrics;
+            }).catch((error) => {
+                console.error(error);
             });
       },
 
