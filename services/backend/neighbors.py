@@ -378,17 +378,19 @@ class ComputedNeighbors(Neighbors):
 class CachedNeighbors(Neighbors):
 
     ENTIRE_FILE: int = 0
+    SMALL_SUFFIX: str = "_small"
     ALL_NEIGHBORS_768D_FILENAME: str = (
-        "/server/data/imdb_{distance_metric}_neighbors.bin"
+        "/server/data/imdb_{distance_metric}_neighbors{small_suffix}.bin"
     )
 
     _file: io.BufferedReader
     _memory_map: mmap.mmap
 
     @classmethod
-    def all_neighbors_768d(cls, distance_metric: str):
+    def all_neighbors_768d(cls, distance_metric: str, use_small: bool = False):
         return cls(cls.ALL_NEIGHBORS_768D_FILENAME.format(
-            distance_metric=distance_metric
+            distance_metric=distance_metric,
+            small_suffix=cls.SMALL_SUFFIX if use_small else ""
         ))
 
     def __init__(self, filename: str):
@@ -429,7 +431,7 @@ class CachedNeighbors(Neighbors):
 if __name__ == "__main__":
     # Change directory for testing outside of docker
     CachedNeighbors.ALL_NEIGHBORS_768D_FILENAME = (
-        "./volumes/data/imdb_{distance_metric}_neighbors.bin"
+        "./volumes/data/imdb_{distance_metric}_neighbors{small_suffix}.bin"
     )
 
     # dummy dataset
