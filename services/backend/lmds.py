@@ -286,3 +286,4 @@ if __name__ == "__main__":
     print("All points:")
     print(lmds.all_points)
     metrics = lmds.compute_metrics(7)
+    print(metrics)
