@@ -15,7 +15,9 @@
           @hovered-point-index-changed="hoveredPointIndexChanged"
           @selected-point-index-changed="selectedPointIndexChanged"
           @selected-point-moved="selectedPointMoved"
+          @framerate-changed="framerateChanged"
         />
+        <div>{{ framerate }} fps</div>
       </td>
       <td style="vertical-align:top">
         <div>
@@ -158,7 +160,6 @@ export default {
           k: 7,
 
           busy: false,
-
           metricsDecimalPlaces: 3
         };
     },
@@ -261,6 +262,12 @@ export default {
                 if (this.selectedLmds.distance_metric == 'cosine') {
                     this.calculateDatapointAngles();
                     this.sortDatapointsByAngle();
+                } else {
+                  // shuffle datapoints
+                  for (let i = this.datapoints.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [this.datapoints[i], this.datapoints[j]] = [this.datapoints[j], this.datapoints[i]];
+                  }
                 }
                 this.updateCanvas();
                 this.getMetrics();
@@ -339,6 +346,10 @@ export default {
             this.datapoint.angle = this.datapointAngle(datapoint);
             this.sortDatapointsByAngle();
         }
+      },
+
+      framerateChanged(framerate) {
+        this.framerate = framerate;
       }
     },
     computed: {

@@ -20,9 +20,9 @@ export default {
             p5canvas: null,
             p5: null,
 
-            xTranslation: null,
-            yTranslation: null,
-            scaling: null,
+            xTranslation: 320,
+            yTranslation: 320,
+            scaling: 1,
 
             quadtree: null,
             selectedPointIndex: null,
@@ -34,6 +34,8 @@ export default {
 
             knnIndices: [],
 
+            needRerender: false,
+            timeSinceLastFpsUpdate: 0,
 
             // CONSTANTS
             canvasWidth: 640,
@@ -47,10 +49,17 @@ export default {
             hoveredFill: [0, 255, 0],
             selectedFill: [255, 0, 0],
             neighborStroke: [255, 0, 0],
-            landmarkStroke: [0, 255, 255]
+            landmarkStroke: [0, 255, 255],
+
+            maxFramerate: 60,
+            fpsUpdatePeriod: 250  // ms
         }
     },
     methods: {
+        datapointMoved() {
+
+        },
+
         datapointsUpdated() {
             let sumX = 0.0;
             let sumY = 0.0;
@@ -72,14 +81,17 @@ export default {
             const meanX = sumX / this.datapoints.length;
             const meanY = sumY / this.datapoints.length;
 
-            this.xTranslation = -meanX + 0.5;
-            this.yTranslation = -meanY + 0.5;
-
             if (this.canvasWidth < this.canvasHeight) {
-                this.scaling = (this.canvasWidth * (1.0 - this.margin)) / (maxX - minX);
+                this.scaling = 0.5 * (this.canvasWidth) / (maxX - minX);
             } else {
-                this.scaling = (this.canvasHeight * (1.0 - this.margin)) / (maxY - minY);
+                this.scaling = 0.5 * (this.canvasHeight) / (maxY - minY);
             }
+
+            this.xTranslation = (-meanX + 0.5) * 2 * this.scaling;
+            this.yTranslation = (-meanY + 0.5) * 2 * this.scaling;
+
+            this.selectedPointIndex = null;
+            this.hoveredPointIndex = null;
 
             this.landmarkIndices = [];
             this.quadtree = new Quadtree(minX, minY, maxX, maxY);
@@ -93,19 +105,36 @@ export default {
             }
 
             this.changeTransformation(this.p5);
+
+            this.$nextTick(() => {
+                this.needRerender = true;
+            });
         },
 
         changeTransformation(p5) {
-            p5.translate(this.xTranslation, this.yTranslation);
             p5.scale(this.scaling);
+            p5.translate(this.xTranslation, this.yTranslation);
+        },
+
+        dataToScreenPosition(position) {
+            return [
+                position[0] * this.scaling + this.xTranslation,
+                position[1] * this.scaling + this.yTranslation
+            ]
+        },
+
+        screenToDataPosition(position) {
+            return [
+                (position[0] - this.xTranslation) / this.scaling,
+                (position[1] - this.yTranslation) / this.scaling
+            ]
         },
 
         datapointIndexAtMouse(p5) {
             for (const landmarkIndex of this.landmarkIndices) {
                 const datapoint = this.datapoints[landmarkIndex];
-                const px = (datapoint.position[0] + this.xTranslation) * this.scaling;
-                const py = (datapoint.position[1] + this.yTranslation) * this.scaling;
-                if (p5.dist(p5.mouseX, p5.mouseY, px, py) <= this.landmarkSize) {
+                const screenPosition = this.dataToScreenPosition(datapoint.position);
+                if (p5.dist(p5.mouseX, p5.mouseY, screenPosition[0], screenPosition[1]) <= this.landmarkSize) {
                     return landmarkIndex;
                 }
             }
@@ -120,9 +149,8 @@ export default {
 
             for (const foundIndex of foundIndices) {
                 const datapoint = this.datapoints[foundIndex];
-                const px = (datapoint.position[0] + this.xTranslation) * this.scaling;
-                const py = (datapoint.position[1] + this.yTranslation) * this.scaling;
-                if (p5.dist(p5.mouseX, p5.mouseY, px, py) <= this.pointSize) {
+                const screenPosition = this.dataToScreenPosition(datapoint.position);
+                if (p5.dist(p5.mouseX, p5.mouseY, screenPosition[0], screenPosition[1]) <= this.pointSize) {
                     return foundIndex;
                 }
             }
@@ -165,11 +193,13 @@ export default {
                 p5.stroke(this.neighborStroke);
                 for (const neighborIndex of this.knnIndices) {
                     const datapoint = this.datapoints[neighborIndex];
+                    const datapointScreenPosition = this.dataToScreenPosition(datapoint.position);
+                    const selectedPointScreenPosition = this.dataToScreenPosition(this.datapoints[this.selectedPointIndex].position);
                     p5.line(
-                        (datapoint.position[0] + this.xTranslation) * this.scaling,
-                        (datapoint.position[1] + this.yTranslation) * this.scaling,
-                        (this.datapoints[this.selectedPointIndex].position[0] + this.xTranslation) * this.scaling,
-                        (this.datapoints[this.selectedPointIndex].position[1] + this.yTranslation) * this.scaling
+                        datapointScreenPosition[0],
+                        datapointScreenPosition[1],
+                        selectedPointScreenPosition[0],
+                        selectedPointScreenPosition[1]
                     );
                 }
             }
@@ -275,18 +305,38 @@ export default {
         drawPoint(p5, x, y, size, fill, stroke, shape) {
             p5.fill(fill);
             (stroke == null) ? p5.noStroke() : p5.stroke(stroke);
+            const screenPosition = this.dataToScreenPosition([x, y]);
             if (shape == 'circle')
                 p5.circle(
-                    (x + this.xTranslation) * this.scaling,
-                    (y + this.yTranslation) * this.scaling,
+                    screenPosition[0],
+                    screenPosition[1],
                     size
                 );
             else if (shape == 'square')
                 p5.square(
-                    (x + this.xTranslation) * this.scaling,
-                    (y + this.yTranslation) * this.scaling,
+                    screenPosition[0],
+                    screenPosition[1],
                     size
                 );
+        },
+
+        drawAxes(p5) {
+            p5.stroke(255);
+            p5.strokeWeight(1);
+            // x axis
+            p5.line(
+                0,
+                this.yTranslation,
+                this.canvasWidth,
+                this.yTranslation
+            );
+            // y axis
+            p5.line(
+                this.xTranslation,
+                0,
+                this.xTranslation,
+                this.canvasHeight
+            );
         },
 
         relativeAbsoluteAngle(datapointA, dataPointB) {
@@ -326,43 +376,73 @@ export default {
             }
         },
 
+        mouseInsideCanvas(p5) {
+            return (
+                p5.mouseX >= 0 && p5.mouseX <= this.canvasWidth &&
+                p5.mouseY >= 0 && p5.mouseY <= this.canvasHeight
+            );
+        },
+
         // P5 FUNCTIONS
         setup(p5) {
-            p5.createCanvas(this.canvasWidth, this.canvasHeight);
-            p5.frameRate(24);
+            const canvas = p5.createCanvas(this.canvasWidth, this.canvasHeight);
+            canvas.elt.addEventListener('wheel', (event) => {
+                event.preventDefault();
+            });
+            p5.frameRate(this.maxFramerate);
             p5.noStroke();
             p5.rectMode(p5.CENTER);
+            this.needRerender = true;
         },
         draw(p5) {
-            p5.background(0);
-            this.drawPoints(p5);
-            p5.fill('white');
-            p5.noStroke();
-            p5.text(p5.frameRate().toFixed(2) + " fps", 10, 10);
-        },
-        mouseDragged(p5, event) {
-            if (this.selectedPointIndex == null || !this.datapoints[this.selectedPointIndex].is_landmark) {
-                this.xTranslation += event.movementX / this.scaling;
-                this.yTranslation += event.movementY / this.scaling;
-                this.changeTransformation(p5);
-            } else {
-                this.newPosition = [
-                    p5.mouseX / this.scaling - this.xTranslation,
-                    p5.mouseY / this.scaling - this.yTranslation
-                ]
-                this.pointIsMoving = true;
+            this.timeSinceLastFpsUpdate += p5.deltaTime;
+            if (this.timeSinceLastFpsUpdate >= this.fpsUpdatePeriod) {
+                while (this.timeSinceLastFpsUpdate >= this.fpsUpdatePeriod) {
+                    this.timeSinceLastFpsUpdate -= this.fpsUpdatePeriod;
+                }
+                this.$emit('framerateChanged', p5.frameRate().toFixed(2));
+            }
+            if (this.needRerender) {
+                p5.background(0);
+                this.drawAxes(p5);
+                this.drawPoints(p5);
+                this.needRerender = false;
             }
         },
+        mouseDragged(p5, event) {
+            if (!this.mouseInsideCanvas(p5)) {
+                this.mouseReleased(p5);
+            }
+            if (this.selectedPointIndex == null || !this.datapoints[this.selectedPointIndex].is_landmark) {
+                this.xTranslation += event.movementX;
+                this.yTranslation += event.movementY;
+                this.changeTransformation(p5);
+            } else {
+                this.newPosition = this.screenToDataPosition([p5.mouseX, p5.mouseY]);
+                this.knnIndices = [];
+                this.pointIsMoving = true;
+            }
+            this.needRerender = true;
+        },
         mouseMoved(p5, event) {
+            if (!this.mouseInsideCanvas(p5)) return;
+            const oldHoveredPointIndex = this.hoveredPointIndex;
             this.hoveredPointIndex = this.datapointIndexAtMouse(p5);
             this.$emit('hoveredPointIndexChanged', this.hoveredPointIndex);
+            if (oldHoveredPointIndex != this.hoveredPointIndex) {
+                this.needRerender = true;
+            }
         },
         mouseWheel(p5, event) {
+            if (!this.mouseInsideCanvas(p5)) return;
             const zoom = -event.delta * this.zoomSpeed;
             this.scaling += zoom;
             this.changeTransformation(p5);
+            this.needRerender = true;
         },
         mousePressed(p5) {
+            if (!this.mouseInsideCanvas(p5)) return;
+            this.pointIsMoving = false;
             this.selectedPointIndex = this.datapointIndexAtMouse(p5);
             this.$emit('selectedPointIndexChanged', this.selectedPointIndex);
             if (this.selectedPointIndex == null) {
@@ -371,12 +451,17 @@ export default {
             }
             const datapoint = this.datapoints[this.selectedPointIndex];
             this.knnIndices = this.findKNearestNeighbors(datapoint);
+            this.needRerender = true;
         },
         mouseReleased(p5) {
             if (!this.pointIsMoving) return;
             this.$emit('selectedPointMoved', this.newPosition);
+            this.$nextTick(() => {
+                this.knnIndices = this.findKNearestNeighbors(this.datapoints[this.selectedPointIndex]);
             this.pointIsMoving = false;
             this.newPosition = null;
+            });
+            this.needRerender = true;
         }
     },
     mounted() {
