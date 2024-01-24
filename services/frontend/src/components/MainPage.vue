@@ -65,11 +65,11 @@
         <div :disabled="selectedLmds == null || !selectedLmds.points_calculated">
           <label for="k">k: </label>
           <input v-model="k" type="number" name="k" min="1" max="1000" step="1" @change="kChanged"><br>
-          trustworthiness: <a v-if="metrics !== null">{{ metrics.trustworthiness }}</a><br>
-          continuity: <a v-if="metrics !== null">{{ metrics.continuity }}</a><br>
-          neighborhood hit: <a v-if="metrics !== null">{{ metrics.neighborhood_hit }}</a><br>
-          shepard goodness: <a v-if="metrics !== null">{{ metrics.shepard_goodness }}</a><br>
-          normalized stress: <a v-if="metrics !== null">{{ metrics.normalized_stress }}</a><br>
+          trustworthiness: <a v-if="metrics !== null">{{ metrics.trustworthiness.toFixed(metricsDecimalPlaces) }}</a><br>
+          continuity: <a v-if="metrics !== null">{{ metrics.continuity.toFixed(metricsDecimalPlaces) }}</a><br>
+          neighborhood hit: <a v-if="metrics !== null">{{ metrics.neighborhood_hit.toFixed(metricsDecimalPlaces) }}</a><br>
+          shepard goodness: <a v-if="metrics !== null">{{ metrics.shepard_goodness.toFixed(metricsDecimalPlaces) }}</a><br>
+          normalized stress: <a v-if="metrics !== null">{{ metrics.normalized_stress.toFixed(metricsDecimalPlaces) }}</a><br>
         </div>
         <br>
 
@@ -157,7 +157,9 @@ export default {
 
           k: 7,
 
-          busy: false
+          busy: false,
+
+          metricsDecimalPlaces: 3
         };
     },
     methods: {

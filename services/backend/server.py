@@ -173,7 +173,7 @@ def route_lmds_metrics(lmds_id: str):
         return {"message": f"Unknown LMDS instance: {lmds_id}"}, 404
     if not lmds.landmarks_reduced:
         return {"message": "Landmarks have not been reduced yet"}, 400
-    k = request.args.get('k', DEFAULT_K)
+    k = request.args.get('k', DEFAULT_K, int)
     return {
         'metrics': lmds.compute_metrics(k),
         'lmds': lmds.to_json() | {'id': lmds_id}
@@ -187,7 +187,7 @@ def route_lmds_metric(lmds_id: str, metric_name: str):
         return {"message": f"Unknown LMDS instance: {lmds_id}"}, 404
     if not lmds.landmarks_reduced:
         return {"message": "Landmarks have not been reduced yet"}, 400
-    k = request.args.get('k', DEFAULT_K)
+    k = request.args.get('k', DEFAULT_K, int)
     if metric_name not in METRIC_NAMES:
         return {"message": f"Unknown metric: {metric_name}"}, 400
     return {
