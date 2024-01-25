@@ -183,6 +183,7 @@ export default {
             this.lmdsIds.push(data.lmds.id);
             this.selectedLmdsId = data.lmds.id;
             this.selectedLmds = data.lmds;
+            this.metrics = null;
             this.getLandmarks();
         }).catch((error) => {
             console.error(error);
@@ -218,6 +219,7 @@ export default {
             this.datapoints = [];
             this.hoveredPointIndex = null;
             this.selectedPointIndex = null;
+            this.metrics = null;
             this.updateCanvas();
         }).catch((error) => {
             console.error(error);
@@ -283,6 +285,7 @@ export default {
       },
 
       getMetrics() {
+        this.metrics = null;
         fetch(`http://${this.host}:5000/lmds/${this.selectedLmdsId}/metrics?k=${this.k}`)
             .then((response) => {
                 return response.json();
@@ -322,6 +325,7 @@ export default {
                 this.selectedLmds = data.lmds;
                 if (this.selectedLmds.points_calculated) {
                     this.getDatapoints();
+                    this.getMetrics();
                 } else {
                     this.getLandmarks();
                 }
