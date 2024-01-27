@@ -14,7 +14,6 @@ typedef struct {
     Index *ranks;
     size_t coreAmount;
     size_t datapointAmount;
-    size_t k;
     std::vector<std::pair<Position2D*, float>> *positionAngles;
 } CosineThreadArgs2D;
 
@@ -25,7 +24,6 @@ typedef struct {
     Index *ranks;
     size_t coreAmount;
     size_t datapointAmount;
-    size_t k;
 } CosineThreadArgs768D;
 
 float positionAngle2D(const Position2D *a) {
@@ -64,7 +62,6 @@ void * cosineThreadHandler2D(void *args) {
     Index *ranks = threadArgs->ranks;
     const size_t coreAmount = threadArgs->coreAmount;
     const size_t datapointAmount = threadArgs->datapointAmount;
-    const size_t k = threadArgs->k;
     const std::vector<std::pair<Position2D*, float>> *positionAngles = threadArgs->positionAngles;
 
     size_t end = (
@@ -78,37 +75,27 @@ void * cosineThreadHandler2D(void *args) {
         auto [position, angle] = (*positionAngles)[i];
         Index leftIndex = i;
         Index rightIndex = (i == datapointAmount - 1) ? 0 : i + 1;
-        for (size_t j = 0; j < k + 1; ++j) {
+        for (size_t j = 0; j < datapointAmount; ++j) {
             const float leftAngle = (*positionAngles)[leftIndex].second;
             const float rightAngle = (*positionAngles)[rightIndex].second;
             if (relativeAngle(leftAngle, angle) < relativeAngle(rightAngle, angle)) {
                 float distance = cosineDistance2D(position, (*positionAngles)[leftIndex].first);
-                distanceIndexPairs[i * (k + 1) + j] = (DistanceIndexPair){
+                distanceIndexPairs[i * datapointAmount + j] = (DistanceIndexPair){
                     .index = leftIndex,
                     .distance = distance
                 };
-                ranks[i * datapointAmount + leftIndex] = j;
                 leftIndex = (leftIndex == 0) ? datapointAmount - 1 : leftIndex - 1;
             } else {
                 float distance = cosineDistance2D(position, (*positionAngles)[rightIndex].first);
-                distanceIndexPairs[i * (k + 1) + j] = (DistanceIndexPair){
+                distanceIndexPairs[i * datapointAmount + j] = (DistanceIndexPair){
                     .index = rightIndex,
                     .distance = distance
                 };
-                ranks[i * datapointAmount + rightIndex] = j;
                 rightIndex = (rightIndex == datapointAmount - 1) ? 0 : rightIndex + 1;
             }
         }
-        for (size_t j = k + 1; j < datapointAmount; ++j) {
-            const float leftAngle = (*positionAngles)[leftIndex].second;
-            const float rightAngle = (*positionAngles)[rightIndex].second;
-            if (relativeAngle(leftAngle, angle) < relativeAngle(rightAngle, angle)) {
-                ranks[i * datapointAmount + leftIndex] = j;
-                leftIndex = (leftIndex == 0) ? datapointAmount - 1 : leftIndex - 1;
-            } else {
-                ranks[i * datapointAmount + rightIndex] = j;
-                rightIndex = (rightIndex == datapointAmount - 1) ? 0 : rightIndex + 1;
-            }
+        for (size_t j = 0; j < datapointAmount; ++j) {
+            ranks[i * datapointAmount + distanceIndexPairs[i * datapointAmount + j].index] = j;
         }
     }
 
@@ -123,7 +110,6 @@ void * cosineThreadHandler768D(void *args) {
     Index *ranks = threadArgs->ranks;
     const size_t coreAmount = threadArgs->coreAmount;
     const size_t datapointAmount = threadArgs->datapointAmount;
-    const size_t k = threadArgs->k;
 
     size_t end = (
         start
@@ -133,22 +119,21 @@ void * cosineThreadHandler768D(void *args) {
     if (end > datapointAmount) end = datapointAmount;
 
     for (size_t i = start; i < end; ++i) {
-        for (size_t j = 0; j < k + 1; ++j) {
-            distanceIndexPairs[i * (k + 1) + j] = (DistanceIndexPair){
-                .index = j,
+        for (size_t j = 0; j < datapointAmount; ++j) {
+            distanceIndexPairs[i * datapointAmount + j] = (DistanceIndexPair){
+                .index = (Index)j,
                 .distance = cosineDistance768D(positions + i, positions + j)
             };
-            ranks[i * datapointAmount + j] = j;
-        }
-        for (size_t j = k + 1; j < datapointAmount; ++j) {
-            ranks[i * datapointAmount + j] = j;
         }
         qsort(
-            distanceIndexPairs,
-            k + 1,
+            distanceIndexPairs + i * datapointAmount,
+            datapointAmount,
             sizeof(DistanceIndexPair),
             compareDistanceIndexPair
         );
+        for (size_t j = 0; j < datapointAmount; ++j) {
+            ranks[i * datapointAmount + distanceIndexPairs[i * datapointAmount + j].index] = j;
+        }
     }
 
     return nullptr;
@@ -157,7 +142,6 @@ void * cosineThreadHandler768D(void *args) {
 void findCosineNeighbors2D(
     Position2D *positions,
     size_t datapointAmount,
-    size_t k,
     DistanceIndexPair *distanceIndexPairs,
     Index *ranks
 ) {
@@ -186,7 +170,6 @@ void findCosineNeighbors2D(
             .ranks = ranks,
             .coreAmount = coreAmount,
             .datapointAmount = datapointAmount,
-            .k = k,
             .positionAngles = &positionAngles
         };
         pthread_create(&threads[i], NULL, cosineThreadHandler2D, &threadArgs[i]);
@@ -200,7 +183,6 @@ void findCosineNeighbors2D(
 void findCosineNeighbors768D(
     Position768D *positions,
     size_t datapointAmount,
-    size_t k,
     DistanceIndexPair *distanceIndexPairs,
     Index *ranks
 ) {
@@ -219,8 +201,7 @@ void findCosineNeighbors768D(
             .distanceIndexPairs = distanceIndexPairs,
             .ranks = ranks,
             .coreAmount = coreAmount,
-            .datapointAmount = datapointAmount,
-            .k = k
+            .datapointAmount = datapointAmount
         };
         pthread_create(&threads[i], NULL, cosineThreadHandler768D, &threadArgs[i]);
     }

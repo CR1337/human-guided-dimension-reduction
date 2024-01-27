@@ -7,6 +7,7 @@ import sysv_ipc
 import subprocess
 import pandas as pd
 from abc import ABC
+from itertools import islice
 from typing import Dict, Generator, Tuple, List
 
 
@@ -19,7 +20,7 @@ class Neighbors(ABC):
     DIMENSIONS_2D: int = 2
     DIMENSIONS_768: int = 768
 
-    PARAMETER_FORMAT: str = "=bHHH"
+    PARAMETER_FORMAT: str = "=bHH"
     POSITION_2D_FORMAT: str = f"={DIMENSIONS_2D}f"
     POSITION_768D_FORMAT: str = f"={DIMENSIONS_768}f"
     DISTANCE_INDEX_PAIR_FORMAT: str = "=Hf"
@@ -42,7 +43,6 @@ class Neighbors(ABC):
 
     _distance_metric: str
     _datapoint_amount: int
-    _k: int
     _dimensions: int
 
     _memory_view: memoryview
@@ -56,10 +56,6 @@ class Neighbors(ABC):
         return self._datapoint_amount
 
     @property
-    def k(self) -> int:
-        return self._k
-
-    @property
     def dimensions(self) -> int:
         return self._dimensions
 
@@ -67,7 +63,6 @@ class Neighbors(ABC):
         self,
         distance_metric: str,
         datapoint_amount: int,
-        k: int,
         dimensions: int
     ):
         self._memory_view = None
@@ -75,8 +70,6 @@ class Neighbors(ABC):
         self._distance_metric = distance_metric
         self._raise_for_datapoint_amount(datapoint_amount)
         self._datapoint_amount = datapoint_amount
-        self._raise_for_k(k)
-        self._k = k
         self._raise_for_dimensions(dimensions)
         self._dimensions = dimensions
 
@@ -96,18 +89,6 @@ class Neighbors(ABC):
             raise ValueError(
                 f"Invalid datapoint amount: {datapoint_amount}. "
                 "Datapoint amount must be > 0."
-            )
-
-    def _raise_for_k(self, k: int):
-        if k <= 0:
-            raise ValueError(
-                f"Invalid k: {k}. "
-                "k must be greater than 0."
-            )
-        if k > self._datapoint_amount - 1:
-            raise ValueError(
-                f"Invalid k: {k}. "
-                f"k must be <= {self._datapoint_amount - 1}."
             )
 
     def _raise_for_dimensions(self, dimensions: int):
@@ -130,15 +111,10 @@ class Neighbors(ABC):
         return self._position_size * self._datapoint_amount
 
     @property
-    def _available_neighbor_count(self) -> int:
-        return min(self._k + 1, self._datapoint_amount)
-
-    @property
     def _distance_index_pairs_size(self) -> int:
         return (
             self.DISTANCE_INDEX_PAIR_SIZE
-            * self._datapoint_amount
-            * self._available_neighbor_count
+            * self._datapoint_amount ** 2
         )
 
     @property
@@ -152,8 +128,7 @@ class Neighbors(ABC):
     def _get_distance_index_pairs_offset(self, index: int) -> int:
         return (
             self._positions_offset + self._positions_size
-            + self.DISTANCE_INDEX_PAIR_SIZE
-            * self._available_neighbor_count * index
+            + self.DISTANCE_INDEX_PAIR_SIZE * self._datapoint_amount * index
         )
 
     def _get_ranks_offset(self, index: int) -> int:
@@ -164,7 +139,7 @@ class Neighbors(ABC):
         )
 
     def _raise_for_index(self, index: int) -> None:
-        if index >= self._datapoint_amount:
+        if index >= self._datapoint_amount or index < 0:
             raise IndexError(
                 f"Index {index} out of range (0, {self._datapoint_amount})"
             )
@@ -192,13 +167,13 @@ class Neighbors(ABC):
         )
         return position
 
-    def get_k_neighbors(self, index: int) -> DistanceIndexPairGenerator:
+    def get_neighbors(self, index: int) -> DistanceIndexPairGenerator:
         """
-        Returns the k nearest neighbors of the datapoint at the given index.
+        Returns the nearest neighbors of the datapoint at the given index.
 
         :param index: The index of the datapoint.
 
-        :return: The k nearest neighbors of the datapoint as tuple of
+        :return: The nearest neighbors of the datapoint as tuple of
             (index, distance) pairs.
         """
         self._raise_for_index(index)
@@ -211,9 +186,14 @@ class Neighbors(ABC):
                     offset + self.DISTANCE_INDEX_PAIR_SIZE * (i + 2)
                 ]
             )
-            for i in range(self._k)
+            for i in range(self._datapoint_amount)
         )
         return neighbors
+
+    def get_k_neighbors(
+        self, index: int, k: int
+    ) -> DistanceIndexPairGenerator:
+        return islice(self.get_neighbors(index), k)
 
     def _get_ranks(self, index: int) -> List[int]:
         offset = self._get_ranks_offset(index)
@@ -258,7 +238,6 @@ class ComputedNeighbors(Neighbors):
     def __init__(
         self,
         distance_metric: str,
-        k: int,
         dimensions: int,
         dataset: pd.DataFrame
     ):
@@ -268,7 +247,6 @@ class ComputedNeighbors(Neighbors):
         super().__init__(
             distance_metric,
             len(dataset),
-            k,
             dimensions
         )
 
@@ -307,10 +285,20 @@ class ComputedNeighbors(Neighbors):
                 raise ValueError(
                     "Invalid dataset: position column missing."
                 )
+            if len(dataset['position'][0]) != self.DIMENSIONS_2D:
+                raise ValueError(
+                    "Invalid dataset: positions must have "
+                    f"{self.DIMENSIONS_2D} dimensions."
+                )
         elif dimensions == self.DIMENSIONS_768:
             if 'embeddings' not in dataset.columns:
                 raise ValueError(
                     "Invalid dataset: embedding column missing."
+                )
+            if len(dataset['embeddings'][0]) != self.DIMENSIONS_768:
+                raise ValueError(
+                    "Invalid dataset: embeddings must have "
+                    f"{self.DIMENSIONS_768} dimensions."
                 )
 
     def _write_shared_memory(self):
@@ -321,7 +309,6 @@ class ComputedNeighbors(Neighbors):
             0,
             ord(self.DISTANCE_METRICS[self._distance_metric]),
             self._datapoint_amount,
-            self._k,
             self._dimensions
         )
         position_key = (
@@ -355,12 +342,12 @@ class ComputedNeighbors(Neighbors):
             stderr=subprocess.PIPE
         )
         process.wait()
+        stdout, stderr = process.communicate()
+        print(stdout.decode("utf-8"))
         if process.returncode != 0:
-            stdout, stderr = process.communicate()
             raise RuntimeError(
                 f'{self.NEIGHBORS_EXECUTABLE_PATH} returned with '
                 f'code {process.returncode}!\n'
-                f'stdout:\n{stdout.decode("utf-8")}\n\n'
                 f'stderr:\n{stderr.decode("utf-8")}'
             )
 
@@ -445,17 +432,16 @@ if __name__ == "__main__":
         {'position': (4.0, 4.0)},
     ])
 
-    # compute 5 nearest euclidean neighbors and all ranks
+    # compute nearest euclidean neighbors and all ranks
     euclidean_neighbors_2d = ComputedNeighbors(
         distance_metric="euclidean",
-        k=5,
         dimensions=Neighbors.DIMENSIONS_2D,
         dataset=dataset_2d
     )
     euclidean_neighbors_2d.dump("euclidean.bin")
     for point_index in range(len(dataset_2d)):
         print(euclidean_neighbors_2d.get_position(point_index))
-        print(list(euclidean_neighbors_2d.get_k_neighbors(point_index)))
+        print(list(euclidean_neighbors_2d.get_neighbors(point_index)))
         print(list(euclidean_neighbors_2d.get_ranks()))
         print()
     # if you don't need it anymore, you should delete it
@@ -465,17 +451,16 @@ if __name__ == "__main__":
     print()
     print()
 
-    # compute 5 nearest cosine neighbors and all ranks
+    # compute nearest cosine neighbors and all ranks
     cosine_neighbors_2d = ComputedNeighbors(
         distance_metric="cosine",
-        k=5,
         dimensions=Neighbors.DIMENSIONS_2D,
         dataset=dataset_2d
     )
     cosine_neighbors_2d.dump("cosine.bin")
     for point_index in range(len(dataset_2d)):
         print(cosine_neighbors_2d.get_position(point_index))
-        print(list(cosine_neighbors_2d.get_k_neighbors(point_index)))
+        print(list(cosine_neighbors_2d.get_neighbors(point_index)))
         print(list(cosine_neighbors_2d.get_ranks()))
         print()
     # if you don't need it anymore, you should delete it
@@ -485,11 +470,16 @@ if __name__ == "__main__":
     print()
     print()
 
+    # exit()
+
     # load cached euclidean neighbors
     euclidean_neighbors_768d = CachedNeighbors.all_neighbors_768d(
-        distance_metric="euclidean"
+        distance_metric="euclidean", use_small=True
     )
     # You can access it like the ComputedNeighbors class
+    ranks = euclidean_neighbors_768d.get_ranks()
+    print(next(ranks))
+    print(next(ranks))
 
     # if you don't need it anymore, you should delete it
     del euclidean_neighbors_768d
@@ -500,9 +490,13 @@ if __name__ == "__main__":
 
     # load cached cosine neighbors
     cosine_neighbors_768d = CachedNeighbors.all_neighbors_768d(
-        distance_metric="cosine"
+        distance_metric="cosine", use_small=True
     )
     # You can access it like the ComputedNeighbors class
+    ranks = cosine_neighbors_768d.get_ranks()
+    print(next(ranks))
+    print(next(ranks))
+    print(next(ranks))
 
     # if you don't need it anymore, you should delete it
     del cosine_neighbors_768d

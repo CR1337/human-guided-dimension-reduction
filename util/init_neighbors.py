@@ -27,11 +27,12 @@ COSINE_OUTPUT_PATHS: List[str] = [
     os.path.join("volumes", "data", "imdb_cosine_neighbors_small.bin"),
 ]
 
-DIMENSIONS: int = 768
-
 sys.path.append(BACKEND_PATH)
 
-from neighbors import ComputedNeighbors  # noqa: E402
+from neighbors import Neighbors, ComputedNeighbors  # noqa: E402
+
+DIMENSIONS: int = Neighbors.DIMENSIONS_768
+
 
 if not os.path.exists(NEIGHBORS_EXECUTABLE_PATH):
     print("Compiling neighbors executable...")
@@ -48,16 +49,9 @@ for (
     with open(dataset_path, "rb") as dataset_file:
         dataset = pickle.load(dataset_file)
 
-    print(dataset)
-    if "small" not in dataset_tag:
-        continue
-
-    k = len(dataset) - 1
-
     print("Computing euclidean neighbors...")
     euclidean_neighbors = ComputedNeighbors(
         distance_metric="euclidean",
-        k=k,
         dimensions=DIMENSIONS,
         dataset=dataset
     )
@@ -69,7 +63,6 @@ for (
     print("Computing cosine neighbors...")
     cosine_neighbors = ComputedNeighbors(
         distance_metric="cosine",
-        k=k,
         dimensions=DIMENSIONS,
         dataset=dataset
     )

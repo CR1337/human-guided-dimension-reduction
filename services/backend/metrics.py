@@ -24,10 +24,8 @@ class Metrics:
         self.data = data
         self.N = len(data)
 
-        self.ld_neighbors = ComputedNeighbors(distance_metric=self.distance_metric, k=self.N -1, dimensions=Neighbors.DIMENSIONS_2D, dataset=data)
-        ld_dist, hd_dist = self.get_distance_matrices()
-        ld_knn, hd_knn = self.get_k_nearest_neighbors(k)
-        trustworthiness, continuity = self.get_trustworthiness_and_continuity(k, ld_knn, hd_knn)
+        self.ld_neighbors = ComputedNeighbors(distance_metric=self.distance_metric, dimensions=Neighbors.DIMENSIONS_2D, dataset=data)
+        trustworthiness, continuity = self.get_trustworthiness_and_continuity(k)
         metric =  {
             "trustworthiness": trustworthiness,
             "continuity": continuity,
@@ -47,7 +45,7 @@ class Metrics:
         ld_dist = np.asarray([[neighbor[1] for neighbor in self.ld_neighbors.get_k_neighbors(i)] for i in range(self.N)])
         hd_dist = np.asarray([[neighbor[1] for neighbor in self.hd_neighbors.get_k_neighbors(i)] for i in range(self.N)])
         return (ld_dist, hd_dist)
-    
+
     def get_k_nearest_neighbors(self, k: int) -> (List[List[int]], List[List[int]]):
         """
         This function returns the k nearest neighbors for each point in the low dimensional space. The list is of the form: self.N * k
@@ -77,8 +75,13 @@ class Metrics:
         # In this formula the paper and code differ. The paper has a small n at (2*n-3*k-1). The code version was choosen.
         factor = 2/(self.N * k * (2*self.N - 3*k - 1))
         for i in range(self.N):
-            ld_point_knn = ld_knn[i]
-            hd_point_knn = hd_knn[i]
+            ld_knn = []
+            hd_knn = []
+            for j, neighbors in enumerate(zip(self.ld_neighbors.get_neighbors(i), self.hd_neighbors.get_neighbors(i))):
+                if j >= k:
+                    break
+                ld_knn.append(neighbors[0][0])
+                hd_knn.append(neighbors[1][0])
             hd_nn = next(hd_rank)
             ld_nn = next(ld_rank)
 
@@ -98,7 +101,7 @@ class Metrics:
     def neighborhood_hit(self, ld_knn: List[List[int]]) -> float:
         labels = list(self.data['label'])
         # Pseudocode: mean(mean(1 if label(j) == label(i) else 0 for j in neighbors(i)) for i in range(N)
-        return np.mean([np.mean([1 if labels[j] == labels[i] else 0 for j in ld_knn[i]]) for i in range(self.N)])
+        return np.mean(np.mean(1 if self.data.iloc[j]['label'] == self.data.iloc[i]['label'] else 0 for j in [neighbor[0] for neighbor in self.ld_neighbors.get_neighbors(i)]) for i in range(self.N))
 
     def shepard_diagram(self, ld_dist: np.ndarray, hd_dist: np.ndarray) -> List[Tuple[float]]:
         return 0.5

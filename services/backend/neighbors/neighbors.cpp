@@ -1,6 +1,8 @@
 #include <sys/shm.h>
 #include <errno.h>
 
+#include <iostream>
+
 #include "types.hpp"
 #include "euclidean.hpp"
 #include "cosine.hpp"
@@ -41,19 +43,24 @@ bool detachSharedMemory(void *sharedMemory) {
 bool computeNeighbors2D(
     DistanceMetric distanceMetric,
     size_t datapointAmount,
-    size_t k,
     void *sharedMemory
 ) {
     Position2D *positions = (Position2D*)sharedMemory;
     DistanceIndexPair *distanceIndexPairs = (DistanceIndexPair*)(positions + datapointAmount);
-    Index *ranks = (Index*)(distanceIndexPairs + datapointAmount * (k + 1));
+    Index *ranks = (Index*)(distanceIndexPairs + datapointAmount * datapointAmount);
+
+    std::cout << "2 D:" << std::endl;
+    std::cout << std::endl;
+    std::cout << "size of  positions: " << (uint8_t*)distanceIndexPairs - (uint8_t*)positions << std::endl;
+    std::cout << "size of  distanceIndexPairs: " << (uint8_t*)ranks - (uint8_t*)distanceIndexPairs << std::endl;
+    std::cout << "size of  ranks: " << (uint8_t*)(ranks + datapointAmount * datapointAmount) - (uint8_t*)ranks << std::endl;
+    std::cout << std::endl;
 
     switch (distanceMetric) {
         case EUCLIDEAN_DISTANCE_METRIC:
             findEuclideanNeighbors2D(
                 positions,
                 datapointAmount,
-                k,
                 distanceIndexPairs,
                 ranks
             );
@@ -62,7 +69,6 @@ bool computeNeighbors2D(
             findCosineNeighbors2D(
                 positions,
                 datapointAmount,
-                k,
                 distanceIndexPairs,
                 ranks
             );
@@ -77,19 +83,17 @@ bool computeNeighbors2D(
 bool computeNeighbors768D(
     DistanceMetric distanceMetric,
     size_t datapointAmount,
-    size_t k,
     void *sharedMemory
 ) {
     Position768D *positions = (Position768D*)sharedMemory;
     DistanceIndexPair *distanceIndexPairs = (DistanceIndexPair*)(positions + datapointAmount);
-    Index *ranks = (Index*)(distanceIndexPairs + datapointAmount * (k + 1));
+    Index *ranks = (Index*)(distanceIndexPairs + datapointAmount * datapointAmount);
 
     switch (distanceMetric) {
         case EUCLIDEAN_DISTANCE_METRIC:
             findEuclideanNeighbors768D(
                 positions,
                 datapointAmount,
-                k,
                 distanceIndexPairs,
                 ranks
             );
@@ -98,7 +102,6 @@ bool computeNeighbors768D(
             findCosineNeighbors768D(
                 positions,
                 datapointAmount,
-                k,
                 distanceIndexPairs,
                 ranks
             );
@@ -130,23 +133,20 @@ int main(int argc, char *argv[]) {
     Parameters *parameters = (Parameters*)sharedMemory;
     DistanceMetric distanceMetric = parameters->distanceMetric;
     Index datapointAmount = parameters->datapointAmount;
-    Index k = parameters->k;
     DimensionCount dimensions = parameters->dimensions;
-
-    if (k >= datapointAmount) k = datapointAmount - 1;
 
     void *originalSharedMemory = sharedMemory;
     sharedMemory = (void*)(parameters + 1);
 
     switch (dimensions) {
         case DIMENSIONS_2:
-            if (!computeNeighbors2D(distanceMetric, datapointAmount, k, sharedMemory)) {
+            if (!computeNeighbors2D(distanceMetric, datapointAmount, sharedMemory)) {
                 printError("Invalid distance metric");
                 return EXIT_FAILURE;
             }
             break;
         case DIMENSIONS_768:
-            if (!computeNeighbors768D(distanceMetric, datapointAmount, k, sharedMemory)) {
+            if (!computeNeighbors768D(distanceMetric, datapointAmount, sharedMemory)) {
                 printError("Invalid distance metric");
                 return EXIT_FAILURE;
             }

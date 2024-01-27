@@ -8,14 +8,12 @@
 void findEuclideanNeighbors2D(
     Position2D *positions,
     size_t datapointAmount,
-    size_t k,
     DistanceIndexPair *distanceIndexPairs,
     Index *ranks
 );
 void findEuclideanNeighbors768D(
     Position768D *positions,
     size_t datapointAmount,
-    size_t k,
     DistanceIndexPair *distanceIndexPairs,
     Index *ranks
 );
