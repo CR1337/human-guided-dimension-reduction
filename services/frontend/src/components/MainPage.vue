@@ -10,8 +10,10 @@
           ref="canvas"
           :datapoints="datapoints"
           :k="k"
+          :coloring="coloring"
           :show-neighbors="showNeighbors"
           :distance-metric="distanceMetric"
+          :metrics="metrics"
           @hovered-point-index-changed="hoveredPointIndexChanged"
           @selected-point-index-changed="selectedPointIndexChanged"
           @selected-point-moved="selectedPointMoved"
@@ -64,14 +66,27 @@
         </div>
         <br>
 
-        <div :disabled="selectedLmds == null || !selectedLmds.points_calculated">
+        <div >
           <label for="k">k: </label>
-          <input v-model="k" type="number" name="k" min="1" max="1000" step="1" @change="kChanged"><br>
+          <input
+            v-model="k" type="number" name="k" min="1" max="1000" step="1" @change="kChanged"
+            :disabled="selectedLmds == null || !selectedLmds.points_calculated"
+          ><br>
           trustworthiness: <a v-if="metrics !== null">{{ metrics.trustworthiness.toFixed(metricsDecimalPlaces) }}</a><br>
           continuity: <a v-if="metrics !== null">{{ metrics.continuity.toFixed(metricsDecimalPlaces) }}</a><br>
           neighborhood hit: <a v-if="metrics !== null">{{ metrics.neighborhood_hit.toFixed(metricsDecimalPlaces) }}</a><br>
           shepard goodness: <a v-if="metrics !== null">{{ metrics.shepard_goodness.toFixed(metricsDecimalPlaces) }}</a><br>
           normalized stress: <a v-if="metrics !== null">{{ metrics.normalized_stress.toFixed(metricsDecimalPlaces) }}</a><br>
+        </div>
+        <div>
+          <label for="coloring">Coloring: </label>
+          <select
+            v-model="coloring" name="coloring" @change="rerender()"
+            :disabled="selectedLmds == null || !selectedLmds.points_calculated || metrics == null"
+          >
+            <option value="label">label</option>
+            <option value="averageLocalError">average local error</option>
+          </select>
         </div>
         <br>
 
@@ -158,6 +173,7 @@ export default {
           selectedPointIndex: null,
 
           k: 7,
+          coloring: 'label',
 
           busy: false,
           metricsDecimalPlaces: 3
@@ -314,6 +330,10 @@ export default {
 
       updateCanvas() {
         nextTick(() => { this.$refs.canvas.datapointsUpdated(); });
+      },
+
+      rerender() {
+        nextTick(() => { this.$refs.canvas.rerender(); });
       },
 
       lmdsSelectionChanged() {
