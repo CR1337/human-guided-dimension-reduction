@@ -7,9 +7,9 @@ from metrics import Metrics
 from neighbors import CachedNeighbors
 
 def random_landmarks_heuristic(
-    dataset: pd.DataFrame, num_landmarks: int
+    dataset: pd.DataFrame, num_landmarks: int, seed: int
 ) -> pd.DataFrame:
-    return dataset.sample(n=num_landmarks)
+    return dataset.sample(n=num_landmarks, random_state=seed)
 
 
 class Lmds:
@@ -46,12 +46,14 @@ class Lmds:
         debug: bool = False,
     ):
         if debug:
-            wait_for_debugger()
+            #wait_for_debugger()
             CachedNeighbors.ALL_NEIGHBORS_768D_FILENAME = './volumes/data/imdb_{distance_metric}_neighbors_small.bin'
 
         self._heuristic = heuristic
         if heuristic == "random":
             self._heuristic_func = random_landmarks_heuristic
+        elif heuristic == "first":
+            self._heuristic_func = lambda dataset, num_landmarks: dataset.head(num_landmarks)
         else:
             raise NotImplementedError(f"Unknown heuristic: {heuristic}")
 
@@ -120,8 +122,8 @@ class Lmds:
         return self._metrics.calculate_all_metrics(self.all_points, k)
 
 
-    def select_landmarks(self):
-        self._landmarks = self._heuristic_func(self._dataset, self._num_landmarks)
+    def select_landmarks(self, seed: int = 42):
+        self._landmarks = self._heuristic_func(self._dataset, self._num_landmarks, seed)
 
     def reduce_landmarks(self):
         if not self.landmarks_selected:
