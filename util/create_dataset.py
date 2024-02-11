@@ -5,7 +5,6 @@ import random
 import pandas as pd
 from typing import List, Tuple
 import numpy as np
-import csv
 
 from os import path
 import sys
@@ -40,12 +39,10 @@ def main():
     split = int(args.split * len(data))
     train = data[:split]
     test = data[split:]
-    with open(args.data_dir + "/train.csv", "w+") as file:
-        writer = csv.writer(file)
-        writer.writerows(train)
+    with open(args.data_dir + "/train.pkl", "w+") as file:
+        pickle.dump(train, file)
     with open(args.data_dir + "/test.csv", "w+") as file:
-        writer = csv.writer(file)
-        writer.writerows(test)
+        pickle.dump(test, file)
 
 
 def generate_data(num_landmarks: int, dataset: pd.DataFrame, seeds: List[int]) -> List[Tuple[np.ndarray, np.ndarray]]:
