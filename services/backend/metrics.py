@@ -34,7 +34,6 @@ class Metrics:
             "continuity": continuity,
             "normalized_stress": self.normalized_stress(ld_dist, hd_dist),
             "neighborhood_hit": self.neighborhood_hit(ld_knn),
-            # "shepard_goodness": self.shepard_goodness(ld_dist, hd_dist),
             "average_local_error": self.average_local_error(ld_dist, hd_dist),
         }
         self.metrics[k] = metric
@@ -82,17 +81,6 @@ class Metrics:
         labels = list(self.data['label'])
         # Pseudocode: mean(mean(1 if label(j) == label(i) else 0 for j in neighbors(i)) for i in range(N)
         return np.mean([np.mean([1 if labels[j] == labels[i] else 0 for j in ld_knn[i]]) for i in range(self.N)])
-
-    def shepard_diagram(self, ld_dist: np.ndarray, hd_dist: np.ndarray) -> List[Tuple[float]]:
-        return 0.5
-
-    def shepard_diagram_plot(self, k: int) -> str:
-        # scatterplot with matplotlib
-        # TODO: See shepard_diagram
-        return 0.5 #filehandle
-
-    def shepard_goodness(self, ld_dist: np.ndarray, hd_dist: np.ndarray) -> float:
-        return spearmanr(ld_dist, hd_dist)[0]
 
     def average_local_error(self, ld_dist: np.ndarray, hd_dist: np.ndarray) -> List[float]:
         # Averaged sum of difference normalized distances between the low and high dimensional space
