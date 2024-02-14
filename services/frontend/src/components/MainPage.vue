@@ -62,19 +62,19 @@
         <br>
 
         <div>
-          <button @click="calculate()" :disabled="selectedLmdsId == null || busy">Calculate</button>
-        </div>
-        <br>
-
-        <div >
           <label for="k">k: </label>
           <input
             v-model="k" type="number" name="k" min="1" max="1000" step="1" @change="kChanged"
             :disabled="selectedLmds == null || !selectedLmds.points_calculated"
           ><br>
+          <button @click="calculate()" :disabled="selectedLmdsId == null || busy">Calculate</button>
+        </div>
+        <br>
+
+        <div >
           trustworthiness: <a v-if="metrics !== null">{{ metrics.trustworthiness.toFixed(metricsDecimalPlaces) }}</a><br>
           continuity: <a v-if="metrics !== null">{{ metrics.continuity.toFixed(metricsDecimalPlaces) }}</a><br>
-          neighborhood hit: <a v-if="metrics !== null">{{ metrics.neighborhood_hit.toFixed(metricsDecimalPlaces) }}</a><br>
+          {{ this.chosenK }}-neighborhood hit: <a v-if="metrics !== null">{{ metrics.neighborhood_hit.toFixed(metricsDecimalPlaces) }}</a><br>
           <!--  shepard goodness: <a v-if="metrics !== null">{{ metrics.shepard_goodness.toFixed(metricsDecimalPlaces) }}</a><br> -->
           normalized stress: <a v-if="metrics !== null">{{ metrics.normalized_stress.toFixed(metricsDecimalPlaces) }}</a><br>
         </div>
@@ -175,6 +175,7 @@ export default {
           selectedPointIndex: null,
 
           k: 7,
+          chosenK: 7,
           coloring: 'label',
 
           busy: false,
@@ -304,6 +305,7 @@ export default {
 
       getMetrics() {
         this.metrics = null;
+        this.chosenK = this.k;
         fetch(`http://${this.host}:5000/lmds/${this.selectedLmdsId}/metrics?k=${this.k}`)
             .then((response) => {
                 return response.json();
