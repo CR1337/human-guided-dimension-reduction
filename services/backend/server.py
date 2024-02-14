@@ -78,6 +78,11 @@ def route_distance_metrics():
     return {'distance_metrics': Lmds.DISTANCE_METRICS}, 200
 
 
+@app.route('/imds-algorithms', methods=['GET'])
+def route_imds_algorithms():
+    return {'imds_algorithms': Lmds.IMDS_ALGORITHMS}, 200
+
+
 @app.route('/metrics', methods=['GET'])
 def route_metrics():
     return {'metrics': METRIC_NAMES}, 200
@@ -101,7 +106,6 @@ def route_lmds():
         num_landmarks = request.json.get(
             'num_landmarks', DEFAULT_NUM_LANDMARKS
         )
-        do_pca = request.json.get('do_pca', False)
         lmds_id = str(uuid4())
         try:
             lmds = Lmds(
@@ -109,7 +113,6 @@ def route_lmds():
                 distance_metric=distance_metric,
                 num_landmarks=num_landmarks,
                 dataset=imdb_dataset_small if USE_SMALL else imdb_dataset,
-                do_pca=do_pca,
                 use_small=USE_SMALL
             )
         except NotImplementedError as ex:
@@ -159,7 +162,11 @@ def route_datapoints(lmds_id: str):
         return {"message": f"Unknown LMDS instance: {lmds_id}"}, 404
     if not lmds.landmarks_reduced:
         return {"message": "Landmarks have not been reduced yet"}, 400
-    lmds.calculate()
+    imds_algorithm = request.args.get(
+        'imds_algorithm', Lmds.IMDS_ALGORITHMS[0]
+    )
+    do_pca = request.args.get('do_pca', "false") == "true"
+    lmds.calculate(imds_algorithm, do_pca)
     return {
         'datapoints': dataframe_to_json(lmds.all_points),
         'lmds': lmds.to_json() | {'id': lmds_id}

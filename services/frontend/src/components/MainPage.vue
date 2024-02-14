@@ -22,8 +22,9 @@
         <div>{{ framerate }} fps</div>
       </td>
       <td style="vertical-align:top">
+        <b>1. Create a new LMDS instance.</b>
         <div>
-          <label for="heuristic">Heuristic: </label>
+          <label for="heuristic">Landmark selection heuristic: </label>
           <select v-model="newHeuristic" name="heuristic">
             <option v-for="heuristic in heuristics" :value="heuristic">{{ heuristic }}</option>
           </select>
@@ -35,48 +36,86 @@
           </select>
           <br>
 
-          <label for="num-landmarks">Number of Landmarks: </label>
+          <label for="num-landmarks">Number of landmarks: </label>
           <input v-model="newNumLandmarks" type="number" name="num-landmarks" min="1" max="1000" step="1">
           <br>
 
-          <label for="doPCA">Optional PCA normalisation: </label>
-          <input v-model="doPCA" type="checkbox" name="doPCA">
-          <br>
           <button @click="newLmds()" :disabled="busy">New LMDS</button>
         </div>
         <br>
 
+        <b>2. Select one of all created LMDS instances.</b>
         <div>
           <label for="lmds">LMDS: </label>
           <select v-model="selectedLmdsId" name="lmds" @change="lmdsSelectionChanged()" :disabled="busy">
             <option v-for="lmds in lmdsIds" :value="lmds">{{ lmds }}</option>
           </select>
           <br>
-          heuristic: <a v-if="selectedLmdsId !== null">{{ selectedLmds.heuristic }}</a><br>
-          distance metric: <a v-if="selectedLmdsId !== null">{{ selectedLmds.distance_metric }}</a><br>
-          num landmarks: <a v-if="selectedLmdsId !== null">{{ selectedLmds.num_landmarks }}</a><br>
-          Optional PCA normalisation: <a v-if="selectedLmdsId !== null">{{ selectedLmds.do_pca }}</a><br>
-          points calculated: <a v-if="selectedLmdsId !== null">{{ selectedLmds.points_calculated }}</a><br>
+          Landmark selection heuristic: <a v-if="selectedLmdsId !== null">{{ selectedLmds.heuristic }}</a><br>
+          Distance metric: <a v-if="selectedLmdsId !== null">{{ selectedLmds.distance_metric }}</a><br>
+          Number of landmarks: <a v-if="selectedLmdsId !== null">{{ selectedLmds.num_landmarks }}</a><br>
+          Points calculated: <a v-if="selectedLmdsId !== null">{{ selectedLmds.points_calculated }}</a><br>
           <button @click="deleteLmds()" :disabled="selectedLmdsId == null || busy">Delete</button>
         </div>
         <br>
 
+        <b>3. Move the landmarks.</b><br>
+        <b>4. Perform the dimensionality reduction.</b>
+        <div>
+          <label for="imds">Inverse MDS algorithm: </label>
+          <select v-model="selectedImdsAlgorithm" name="imds" :disabled="selectedLmds == null">
+            <option v-for="algorithm in imdsAlgorithms" :value="algorithm">{{ algorithm }}</option>
+          </select><br>
+
+          <label for="doPCA">PCA normalisation: </label>
+          <input v-model="doPCA" type="checkbox" name="doPCA" :disabled="selectedLmds == null">
+          <br>
+
+          <button @click="calculate()" :disabled="selectedLmdsId == null || busy">Calculate</button>
+        </div>
+        <br>
+
+        <b>5. Look at the metrics.</b>
         <div>
           <label for="k">k: </label>
           <input
             v-model="k" type="number" name="k" min="1" max="1000" step="1" @change="kChanged"
             :disabled="selectedLmds == null || !selectedLmds.points_calculated"
           ><br>
-          <button @click="calculate()" :disabled="selectedLmdsId == null || busy">Calculate</button>
-        </div>
-        <br>
-
-        <div >
-          trustworthiness: <a v-if="metrics !== null">{{ metrics.trustworthiness.toFixed(metricsDecimalPlaces) }}</a><br>
-          continuity: <a v-if="metrics !== null">{{ metrics.continuity.toFixed(metricsDecimalPlaces) }}</a><br>
-          {{ this.chosenK }}-neighborhood hit: <a v-if="metrics !== null">{{ metrics.neighborhood_hit.toFixed(metricsDecimalPlaces) }}</a><br>
-          <!--  shepard goodness: <a v-if="metrics !== null">{{ metrics.shepard_goodness.toFixed(metricsDecimalPlaces) }}</a><br> -->
-          normalized stress: <a v-if="metrics !== null">{{ metrics.normalized_stress.toFixed(metricsDecimalPlaces) }}</a><br>
+          <table>
+            <tr>
+              <th>Metric</th>
+              <th>Value</th>
+              <th>Range</th>
+            </tr>
+            <tr>
+              <td>Trustworthiness</td>
+              <td><a v-if="metrics !== null">{{ metrics.trustworthiness.toFixed(metricsDecimalPlaces) }}</a><a v-else>-</a></td>
+              <td>[0 .. <b>1</b>]</td>
+            </tr>
+            <tr>
+              <td>Continuity</td>
+              <td><a v-if="metrics !== null">{{ metrics.continuity.toFixed(metricsDecimalPlaces) }}</a><a v-else>-</a></td>
+              <td>[0 .. <b>1</b>]</td>
+            </tr>
+            <tr>
+              <td>{{ this.k }}-neighborhood hit</td>
+              <td><a v-if="metrics !== null">{{ metrics.neighborhood_hit.toFixed(metricsDecimalPlaces) }}</a><a v-else>-</a></td>
+              <td>[0 .. <b>1</b>]</td>
+            </tr>
+            <!--
+            <tr>
+              <td>Shepard Goodness</td>
+              <td><a v-if="metrics !== null">{{ metrics.shepard_goodness.toFixed(metricsDecimalPlaces) }}</a><a v-else>-</a></td>
+              <td>[0 .. <b>1</b>]</td>
+            </tr>
+            -->
+            <tr>
+              <td>Normalized Stress</td>
+              <td><a v-if="metrics !== null">{{ metrics.normalized_stress.toFixed(metricsDecimalPlaces) }}</a><a v-else>-</a></td>
+              <td>[<b>0</b> .. 1]</td>
+            </tr>
+          </table>
         </div>
         <div>
           <label for="coloring">Coloring: </label>
@@ -153,11 +192,21 @@ export default {
             }).catch((error) => {
                 console.error(error);
             });
+        fetch('http://' + this.host + ':5000/imds-algorithms')
+            .then((response) => {
+              return response.json();
+            }).then((data) => {
+              this.imdsAlgorithms = data.imds_algorithms;
+              this.selectedImdsAlgorithm = this.imdsAlgorithms[0];
+            }).catch((error) => {
+              console.error(error);
+            });
     },
     data() {
         return {
           heuristics: [],
           distanceMetrics: [],
+          imdsAlgorithms: [],
 
           newHeuristic: null,
           newDistanceMetric: null,
@@ -175,7 +224,7 @@ export default {
           selectedPointIndex: null,
 
           k: 7,
-          chosenK: 7,
+          selectedImdsAlgorithm: null,
           coloring: 'label',
 
           busy: false,
@@ -193,8 +242,7 @@ export default {
             body: JSON.stringify({
                 heuristic: this.newHeuristic,
                 distance_metric: this.newDistanceMetric,
-                num_landmarks: this.newNumLandmarks,
-                do_pca: this.doPCA
+                num_landmarks: this.newNumLandmarks
             })
         }).then((response) => {
             return response.json();
@@ -273,7 +321,7 @@ export default {
 
       getDatapoints() {
         this.busy = true;
-        fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId + '/datapoints')
+        fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId + '/datapoints?imds_algorithm=' + this.selectedImdsAlgorithm + "&do_pca=" + this.doPca)
             .then((response) => {
                 return response.json();
             }).then((data) => {
@@ -305,7 +353,6 @@ export default {
 
       getMetrics() {
         this.metrics = null;
-        this.chosenK = this.k;
         fetch(`http://${this.host}:5000/lmds/${this.selectedLmdsId}/metrics?k=${this.k}`)
             .then((response) => {
                 return response.json();
