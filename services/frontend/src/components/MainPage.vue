@@ -353,6 +353,7 @@ export default {
 
       getMetrics() {
         this.metrics = null;
+        this.chosenK = this.k;
         fetch(`http://${this.host}:5000/lmds/${this.selectedLmdsId}/metrics?k=${this.k}`)
             .then((response) => {
                 return response.json();
