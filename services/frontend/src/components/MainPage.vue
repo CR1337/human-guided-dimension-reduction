@@ -10,8 +10,10 @@
           ref="canvas"
           :datapoints="datapoints"
           :k="k"
+          :coloring="coloring"
           :show-neighbors="showNeighbors"
           :distance-metric="distanceMetric"
+          :metrics="metrics"
           @hovered-point-index-changed="hoveredPointIndexChanged"
           @selected-point-index-changed="selectedPointIndexChanged"
           @selected-point-moved="selectedPointMoved"
@@ -64,9 +66,27 @@
         </div>
         <br>
 
-        <div>
+        <div >
           <label for="k">k: </label>
-          <input v-model="k" type="number" name="k" min="1" max="1000" step="1">
+          <input
+            v-model="k" type="number" name="k" min="1" max="1000" step="1" @change="kChanged"
+            :disabled="selectedLmds == null || !selectedLmds.points_calculated"
+          ><br>
+          trustworthiness: <a v-if="metrics !== null">{{ metrics.trustworthiness.toFixed(metricsDecimalPlaces) }}</a><br>
+          continuity: <a v-if="metrics !== null">{{ metrics.continuity.toFixed(metricsDecimalPlaces) }}</a><br>
+          neighborhood hit: <a v-if="metrics !== null">{{ metrics.neighborhood_hit.toFixed(metricsDecimalPlaces) }}</a><br>
+          <!--  shepard goodness: <a v-if="metrics !== null">{{ metrics.shepard_goodness.toFixed(metricsDecimalPlaces) }}</a><br> -->
+          normalized stress: <a v-if="metrics !== null">{{ metrics.normalized_stress.toFixed(metricsDecimalPlaces) }}</a><br>
+        </div>
+        <div>
+          <label for="coloring">Coloring: </label>
+          <select
+            v-model="coloring" name="coloring" @change="rerender()"
+            :disabled="selectedLmds == null || !selectedLmds.points_calculated || metrics == null"
+          >
+            <option value="label">label</option>
+            <option value="averageLocalError">average local error</option>
+          </select>
         </div>
         <br>
 
@@ -147,14 +167,16 @@ export default {
           lmdsIds: [],
           selectedLmdsId: null,
           selectedLmds: null,
+          metrics: null,
 
           hoveredPointIndex: null,
           selectedPointIndex: null,
 
           k: 7,
+          coloring: 'label',
 
           busy: false,
-          framerate: 0
+          metricsDecimalPlaces: 3
         };
     },
     methods: {
@@ -177,6 +199,7 @@ export default {
             this.lmdsIds.push(data.lmds.id);
             this.selectedLmdsId = data.lmds.id;
             this.selectedLmds = data.lmds;
+            this.metrics = null;
             this.getLandmarks();
         }).catch((error) => {
             console.error(error);
@@ -212,6 +235,7 @@ export default {
             this.datapoints = [];
             this.hoveredPointIndex = null;
             this.selectedPointIndex = null;
+            this.metrics = null;
             this.updateCanvas();
         }).catch((error) => {
             console.error(error);
@@ -264,10 +288,27 @@ export default {
                   }
                 }
                 this.updateCanvas();
+                this.getMetrics();
             }).catch((error) => {
                 console.error(error);
             }).finally(() => {
                 this.busy = false;
+            });
+      },
+
+      kChanged() {
+        this.getMetrics();
+      },
+
+      getMetrics() {
+        this.metrics = null;
+        fetch(`http://${this.host}:5000/lmds/${this.selectedLmdsId}/metrics?k=${this.k}`)
+            .then((response) => {
+                return response.json();
+            }).then((data) => {
+                this.metrics = data.metrics;
+            }).catch((error) => {
+                console.error(error);
             });
       },
 
@@ -291,6 +332,10 @@ export default {
         nextTick(() => { this.$refs.canvas.datapointsUpdated(); });
       },
 
+      rerender() {
+        nextTick(() => { this.$refs.canvas.rerender(); });
+      },
+
       lmdsSelectionChanged() {
         this.busy = true;
         fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId)
@@ -300,6 +345,7 @@ export default {
                 this.selectedLmds = data.lmds;
                 if (this.selectedLmds.points_calculated) {
                     this.getDatapoints();
+                    this.getMetrics();
                 } else {
                     this.getLandmarks();
                 }
