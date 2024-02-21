@@ -19,7 +19,15 @@
           @selected-point-moved="selectedPointMoved"
           @framerate-changed="framerateChanged"
         />
-        <div>{{ framerate }} fps</div>
+        <div>
+          <a>
+          {{ framerate }} fps
+          </a>
+          <a style="align: right;">
+            <b v-if="busy" style="color: #ff0000;">busy...</b>
+            <b v-if="calculatingMetrics" style="color: #ff0000;">calculating metrics...</b>
+          </a>
+        </div>
       </td>
       <td style="vertical-align:top">
         <b>1. Create a new LMDS instance.</b>
@@ -119,6 +127,7 @@
             </tr>
           </table>
         </div>
+        <br>
         <div>
           <label for="coloring">Coloring: </label>
           <select
@@ -130,13 +139,6 @@
           </select>
         </div>
         <br>
-
-        <div v-if="busy">
-          <b style="color: #ff0000">busy...</b>
-        </div>
-        <div v-if="calculatingMetrics">
-          <b style="color: #ff0000">calculating metrics...</b>
-        </div>
       </td>
     </tr>
   </table>
