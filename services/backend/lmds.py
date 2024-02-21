@@ -16,7 +16,7 @@ def random_landmarks_heuristic(
 
 class Lmds:
 
-    HEURISTICS: List[str] = ["random"]
+    HEURISTICS: List[str] = ["random", "first"]
     DISTANCE_METRICS: List[str] = ["euclidean", "cosine"]
     LANDMARK_AMOUNT_RANGE: Tuple[int, int] = (10, 30)
     IMDS_ALGORITHMS: List[str] = ["trivial"]
