@@ -368,16 +368,31 @@ export default {
             p5.push()
             p5.noStroke();
 
-            for (let i = 0; i < this.legendWidth; ++i) {
-                const t = p5.map(i, 0, this.legendWidth, 0, 1);
-                const c = this.getColorFromColorScale(p5, t);
-                p5.fill(c);
-                p5.rect(i + this.legendX, this.legendY, 1, this.legendHeight);
-            }
+            switch(this.coloring) {
+                case "label":
+                    p5.fill(this.fills[0]);
+                    p5.rect(this.legendX, this.legendY, this.legendHeight);
+                    p5.fill(this.fills[1]);
+                    p5.rect(this.legendX, this.legendY + this.legendHeight, this.legendHeight);
 
-            p5.textAlign(p5.CENTER);
-            p5.text("0", this.legendX, this.legendY + this.legendHeight + 4);
-            p5.text("1", this.legendX + this.legendWidth, this.legendY + this.legendHeight + 4);
+                    p5.fill(255);
+                    p5.text("0", this.legendX + this.legendHeight + 4, this.legendY + 4);
+                    p5.text("1", this.legendX + this.legendHeight + 4, this.legendY + this.legendHeight + 4);
+                    break;
+
+                case "averageLocalError":
+                    for (let i = 0; i < this.legendWidth; ++i) {
+                        const t = p5.map(i, 0, this.legendWidth, 0, 1);
+                        const c = this.getColorFromColorScale(p5, t);
+                        p5.fill(c);
+                        p5.rect(i + this.legendX, this.legendY, 1, this.legendHeight);
+                    }
+
+                    p5.textAlign(p5.CENTER);
+                    p5.text("0", this.legendX, this.legendY + this.legendHeight + 4);
+                    p5.text("1", this.legendX + this.legendWidth, this.legendY + this.legendHeight + 4);
+                    break;
+            }
 
             p5.pop()
         },
@@ -461,9 +476,7 @@ export default {
                 p5.background(0);
                 this.drawAxes(p5);
                 this.drawPoints(p5);
-                if (this.coloring == 'averageLocalError') {
-                    this.drawLegend(p5);
-                }
+                this.drawLegend(p5);
                 this.needRerender = false;
             }
         },

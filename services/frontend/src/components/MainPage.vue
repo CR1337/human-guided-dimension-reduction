@@ -21,8 +21,6 @@
         />
         <div>
           {{ framerate }} fps
-          <b>    Label 0: </b><a style="color: #0000ff"> ⬤</a>
-          <b>    Label 1: </b><a style="color: #ffff00"> ⬤</a>
           <b v-if="busy" style="color: #ff0000;">    busy...</b>
           <b v-if="calculatingMetrics" style="color: #ff0000;">    calculating metrics...</b>
         </div>
