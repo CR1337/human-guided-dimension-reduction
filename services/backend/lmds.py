@@ -18,6 +18,7 @@ class Lmds:
 
     HEURISTICS: List[str] = ["random"]
     DISTANCE_METRICS: List[str] = ["euclidean", "cosine"]
+    LANDMARK_AMOUNT_RANGE: Tuple[int, int] = (10, 100)
     IMDS_ALGORITHMS: List[str] = ["trivial"]
 
     _heuristic: str

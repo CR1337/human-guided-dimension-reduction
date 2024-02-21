@@ -68,24 +68,16 @@ def route_dataset():
         return {'datapoints': dataframe_to_json(imdb_dataset)}, 200
 
 
-@app.route('/heuristics', methods=['GET'])
-def route_heuristics():
-    return {'heuristics': Lmds.HEURISTICS}, 200
-
-
-@app.route('/distance-metrics', methods=['GET'])
-def route_distance_metrics():
-    return {'distance_metrics': Lmds.DISTANCE_METRICS}, 200
-
-
-@app.route('/imds-algorithms', methods=['GET'])
-def route_imds_algorithms():
-    return {'imds_algorithms': Lmds.IMDS_ALGORITHMS}, 200
-
-
-@app.route('/metrics', methods=['GET'])
-def route_metrics():
-    return {'metrics': METRIC_NAMES}, 200
+@app.route('/constants', methods=['GET'])
+def route_constants():
+    return {
+        'heuristics': Lmds.HEURISTICS,
+        'distance_metrics': Lmds.DISTANCE_METRICS,
+        'metrics': METRIC_NAMES,
+        'min_landmark_amount': Lmds.LANDMARK_AMOUNT_RANGE[0],
+        'max_landmark_amount': Lmds.LANDMARK_AMOUNT_RANGE[1],
+        'imds_algorithms': Lmds.IMDS_ALGORITHMS
+    }, 200
 
 
 @app.route('/lmds', methods=['GET', 'POST'])
