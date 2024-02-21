@@ -36,8 +36,9 @@
           </select>
           <br>
 
-          <label for="num-landmarks">Number of landmarks: </label>
-          <input v-model="newNumLandmarks" type="number" name="num-landmarks" min="1" max="1000" step="1">
+          <label for="num-landmarks">Number of Landmarks: </label>
+          <input v-model="newNumLandmarks" type="range" name="num-landmarks" :min="minLandmarkAmount" :max="maxLandmarkAmount" step="1">
+          <a>{{ newNumLandmarks }}</a>
           <br>
 
           <button @click="newLmds()" :disabled="busy">New LMDS</button>
@@ -174,38 +175,29 @@ export default {
     name: "MainPage",
     components: { Canvas },
     mounted() {
-        fetch('http://' + this.host + ':5000/heuristics')
-            .then((response) => {
-                return response.json();
-            }).then((data) => {
-                this.heuristics = data.heuristics;
-                this.newHeuristic = this.heuristics[0];
-            }).catch((error) => {
-                console.error(error);
-            });
-        fetch('http://' + this.host + ':5000/distance-metrics')
-            .then((response) => {
-                return response.json();
-            }).then((data) => {
-                this.distanceMetrics = data.distance_metrics;
-                this.newDistanceMetric = this.distanceMetrics[0];
-            }).catch((error) => {
-                console.error(error);
-            });
-        fetch('http://' + this.host + ':5000/imds-algorithms')
-            .then((response) => {
+        fetch('http://' + this.host + ':5000/constants')
+          .then((response) => {
               return response.json();
-            }).then((data) => {
+          }).then((data) => {
+              this.heuristics = data.heuristics;
+              this.newHeuristic = this.heuristics[0];
+              this.distanceMetrics = data.distance_metrics;
+              this.newDistanceMetric = this.distanceMetrics[0];
+              this.minLandmarkAmount = data.min_landmark_amount;
+              this.maxLandmarkAmount = data.max_landmark_amount;
+              this.newNumLandmarks = this.minLandmarkAmount;
               this.imdsAlgorithms = data.imds_algorithms;
               this.selectedImdsAlgorithm = this.imdsAlgorithms[0];
-            }).catch((error) => {
+          }).catch((error) => {
               console.error(error);
-            });
+          });
     },
     data() {
         return {
           heuristics: [],
           distanceMetrics: [],
+          minLandmarkAmount: 10,  // default value, will be updated by server
+          maxLandmarkAmount: 100,  // default value, will be updated by server
           imdsAlgorithms: [],
 
           newHeuristic: null,
@@ -242,7 +234,8 @@ export default {
             body: JSON.stringify({
                 heuristic: this.newHeuristic,
                 distance_metric: this.newDistanceMetric,
-                num_landmarks: this.newNumLandmarks
+                num_landmarks: parseInt(this.newNumLandmarks, 10),
+                do_pca: this.doPCA
             })
         }).then((response) => {
             return response.json();
