@@ -138,11 +138,13 @@ class Lmds:
         """
         return np.vstack(self._landmarks['position'].apply(np.array))
 
+    def distances(self, vector1: np.array, vector2: np.array) -> np.ndarray:
+        return self._distance_metric_func(vector1, vector2)
+
     def compute_metrics(self, k: int) -> Dict[str, Any]:
         if not self.points_calculated:
             raise RuntimeError("Points not calculated!")
         return self._metrics.calculate_all_metrics(self.all_points, k)
-
 
     def select_landmarks(self, seed: int = 42):
         self._landmarks = self._heuristic_func(self._dataset, self._num_landmarks, seed)

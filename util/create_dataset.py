@@ -5,7 +5,6 @@ import random
 import pandas as pd
 from typing import List, Tuple
 import numpy as np
-from sklearn.metrics.pairwise import euclidean_distances, cosine_distances
 
 from os import path
 import sys
@@ -60,15 +59,24 @@ def generate_data(num_landmarks: int, dataset: pd.DataFrame, seeds: List[int], d
     for seed in seeds:
         lmds.select_landmarks(seed=seed)
         lmds.reduce_landmarks()
+
         original_position = np.vstack(
             lmds.landmarks["embeddings"].apply(np.array)
         )
         projected_position = np.vstack(
             lmds.landmarks["position"].apply(np.array)
         )
+
+        original_distances = lmds.distances(
+            original_position, original_position
+        )
+        projected_distances = lmds.distances(
+            projected_position, projected_position
+        )
+
         result.append((
-            original_position,
-            projected_position
+            original_distances,
+            projected_distances
         ))
     return result
 
