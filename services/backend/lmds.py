@@ -8,12 +8,6 @@ from metrics import Metrics
 from neighbors import CachedNeighbors
 
 
-def random_landmarks_heuristic(
-    dataset: pd.DataFrame, num_landmarks: int, seed: int
-) -> pd.DataFrame:
-    return dataset.sample(n=num_landmarks, random_state=seed)
-
-
 class Lmds:
 
     HEURISTICS: List[str] = ["random", "first"]
@@ -61,7 +55,7 @@ class Lmds:
 
         self._heuristic = heuristic
         if heuristic == "random":
-            self._heuristic_func = random_landmarks_heuristic
+            self._heuristic_func = lambda dataset, num_landmarks, seed: dataset.sample(n=num_landmarks, random_state=seed)
         elif heuristic == "first":
             self._heuristic_func = lambda dataset, num_landmarks, _: dataset.head(num_landmarks)
         else:
