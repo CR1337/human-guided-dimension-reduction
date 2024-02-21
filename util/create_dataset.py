@@ -5,6 +5,7 @@ import random
 import pandas as pd
 from typing import List, Tuple
 import numpy as np
+from sklearn.metrics.pairwise import euclidean_distances, cosine_distances
 
 from os import path
 import sys
@@ -19,6 +20,7 @@ def parse_args():
     parser.add_argument("-s", "--split", type=float, default=0.8, help="Train-test split")
     parser.add_argument("-ll", "--landmark_lower_bound", default=10, type=int, help="Lower bound for number of landmarks")
     parser.add_argument("-ul", "--landmark_upper_bound", default=100, type=int, help="Upper bound for number of landmarks")
+    parser.add_argument("-dm", "--distance_metric", default="euclidean", type=str, help="The metric to measure distances with")
     parser.add_argument("--seed", default=42, type=int, help="Random seed")
     return parser.parse_args()
 
@@ -34,7 +36,7 @@ def main():
     seeds = random.sample(range(100000), samples_per_landmark_count)
     data = []
     for i in range(args.landmark_lower_bound, args.landmark_upper_bound):
-        data += generate_data(i, dataset, seeds)
+        data += generate_data(i, dataset, seeds, args.distance_metric)
     random.shuffle(data)
     split = int(args.split * len(data))
     train = data[:split]
@@ -45,10 +47,10 @@ def main():
         pickle.dump(test, file)
 
 
-def generate_data(num_landmarks: int, dataset: pd.DataFrame, seeds: List[int]) -> List[Tuple[np.ndarray, np.ndarray]]:
+def generate_data(num_landmarks: int, dataset: pd.DataFrame, seeds: List[int], distance_metric: str) -> List[Tuple[np.ndarray, np.ndarray]]:
     lmds = Lmds(
         heuristic="random",
-        distance_metric="euclidean",
+        distance_metric=distance_metric,
         num_landmarks=num_landmarks,
         dataset=dataset,
         do_pca=False,
