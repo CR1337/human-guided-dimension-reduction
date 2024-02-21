@@ -41,9 +41,9 @@ with open('/server/data/imdb_embeddings_small.pkl', 'rb') as file:
 def dataframe_to_json(dataframe: pd.DataFrame) -> List[Dict[str, Any]]:
     return [
         {
-            "id": index,
+            "id": int(index),
             "text": series["text"],
-            "label": series["label"],
+            "label": str(series["label"]),
             "is_landmark": series["landmark"],
             "position": (
                 series["position"]

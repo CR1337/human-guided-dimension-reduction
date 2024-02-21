@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+import itertools
+from random import Random
 from sklearn.metrics.pairwise import euclidean_distances, cosine_distances
 from typing import Any, Callable, Dict, List, Tuple
 from functools import cached_property
@@ -8,9 +10,26 @@ from metrics import Metrics
 from neighbors import CachedNeighbors
 
 
+def balanced_heuristic(
+    dataset: pd.DataFrame, num_landmarks: int, seed: int
+) -> pd.DataFrame:
+    df = dataset.copy().sample(frac=1, random_state=seed)
+    landmarks = pd.DataFrame(columns=df.columns)
+
+    label_dfs = [df[df['label'] == label] for label in df['label'].unique()]
+    Random(seed).shuffle(label_dfs)
+
+    for i, label_df in zip(range(num_landmarks), itertools.cycle(label_dfs)):
+        landmarks = pd.concat(
+            [landmarks, label_df.iloc[i % num_landmarks].to_frame().T]
+        )
+
+    return landmarks
+
+
 class Lmds:
 
-    HEURISTICS: List[str] = ["random", "first"]
+    HEURISTICS: List[str] = ["balanced", "random", "first"]
     DISTANCE_METRICS: List[str] = ["euclidean", "cosine"]
     LANDMARK_AMOUNT_RANGE: Tuple[int, int] = (10, 30)
     IMDS_ALGORITHMS: List[str] = ["trivial"]
@@ -55,9 +74,17 @@ class Lmds:
 
         self._heuristic = heuristic
         if heuristic == "random":
-            self._heuristic_func = lambda dataset, num_landmarks, seed: dataset.sample(n=num_landmarks, random_state=seed)
+            self._heuristic_func = (
+                lambda dataset, num_landmarks, seed:
+                    dataset.sample(n=num_landmarks, random_state=seed)
+            )
         elif heuristic == "first":
-            self._heuristic_func = lambda dataset, num_landmarks, _: dataset.head(num_landmarks)
+            self._heuristic_func = (
+                lambda dataset, num_landmarks, _:
+                    dataset.head(num_landmarks)
+            )
+        elif heuristic == "balanced":
+            self._heuristic_func = balanced_heuristic
         else:
             raise NotImplementedError(f"Unknown heuristic: {heuristic}")
 
@@ -147,7 +174,9 @@ class Lmds:
         return self._metrics.calculate_all_metrics(self.all_points, k)
 
     def select_landmarks(self, seed: int = 42):
-        self._landmarks = self._heuristic_func(self._dataset, self._num_landmarks, seed)
+        self._landmarks = self._heuristic_func(
+            self._dataset, self._num_landmarks, seed
+        )
 
     def reduce_landmarks(self):
         if not self.landmarks_selected:
