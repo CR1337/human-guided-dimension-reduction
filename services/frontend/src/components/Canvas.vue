@@ -471,6 +471,7 @@ export default {
         mouseDragged(p5, event) {
             if (!this.mouseInsideCanvas(p5)) {
                 this.mouseReleased(p5);
+                return;
             }
             if (this.selectedPointIndex == null || !this.datapoints[this.selectedPointIndex].is_landmark) {
                 this.xTranslation += event.movementX;
