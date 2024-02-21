@@ -2,7 +2,7 @@ from flask import Flask, request
 from flask_cors import CORS
 from lmds import Lmds
 from typing import Dict, List, Any
-from uuid import uuid4
+import human_readable_ids
 import pandas as pd
 import pickle
 
@@ -98,7 +98,7 @@ def route_lmds():
         num_landmarks = request.json.get(
             'num_landmarks', DEFAULT_NUM_LANDMARKS
         )
-        lmds_id = str(uuid4())
+        lmds_id = human_readable_ids.get_new_id().lower().replace(" ", "-")
         try:
             lmds = Lmds(
                 heuristic=heuristic,
