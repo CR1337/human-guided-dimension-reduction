@@ -20,13 +20,11 @@
           @framerate-changed="framerateChanged"
         />
         <div>
-          <a>
           {{ framerate }} fps
-          </a>
-          <a style="align: right;">
-            <b v-if="busy" style="color: #ff0000;">busy...</b>
-            <b v-if="calculatingMetrics" style="color: #ff0000;">calculating metrics...</b>
-          </a>
+          <b>    Label 0: </b><a style="color: #0000ff"> ⬤</a>
+          <b>    Label 1: </b><a style="color: #ffff00"> ⬤</a>
+          <b v-if="busy" style="color: #ff0000;">    busy...</b>
+          <b v-if="calculatingMetrics" style="color: #ff0000;">    calculating metrics...</b>
         </div>
       </td>
       <td style="vertical-align:top">
@@ -142,35 +140,31 @@
       </td>
     </tr>
   </table>
-  <br>
 
-  <div>
-    <b>Label 0: </b><a style="color: #0000ff"> ⬤</a>
-    <b>    Label 1: </b><a style="color: #ffff00"> ⬤</a>
-  </div>
-  <br>
-
-  <div>
-    <b>Hovered Point</b><a style="color: #00ff00"> ⬤</a><br>
-    id: <a v-if="hoveredPointIndex !== null">{{ datapoints[hoveredPointIndex].id }}</a><br>
-    position: <a v-if="hoveredPointIndex !== null">{{ datapoints[hoveredPointIndex].position }}</a><br>
-    label: <a v-if="hoveredPointIndex !== null">{{ datapoints[hoveredPointIndex].label }}</a><br>
-    is landmark: <a v-if="hoveredPointIndex !== null">{{ datapoints[hoveredPointIndex].is_landmark }}</a><br>
-    average local error: <a v-if="hoveredPointIndex !== null">{{ metrics !== null ? metrics.average_local_error[hoveredPointIndex].toFixed(metricsDecimalPlaces) : "" }}</a><br>
-    text: <a v-if="hoveredPointIndex !== null">{{ datapoints[hoveredPointIndex].text }}</a><br>
-  </div>
-  <br>
-
-  <div>
-    <b>Selected Point</b><a style="color: #ff0000"> ⬤</a><br>
-    id: <a v-if="selectedPointIndex !== null">{{ datapoints[selectedPointIndex].id }}</a><br>
-    position: <a v-if="selectedPointIndex !== null">{{ datapoints[selectedPointIndex].position }}</a><br>
-    label: <a v-if="selectedPointIndex !== null">{{ datapoints[selectedPointIndex].label }}</a><br>
-    is landmark: <a v-if="selectedPointIndex !== null">{{ datapoints[selectedPointIndex].is_landmark }}</a><br>
-    average local error: <a v-if="selectedPointIndex !== null">{{ metrics !== null ? metrics.average_local_error[selectedPointIndex].toFixed(metricsDecimalPlaces) : "" }}</a><br>
-    text: <a v-if="selectedPointIndex !== null">{{ datapoints[selectedPointIndex].text }}</a><br>
-  </div>
-
+  <table style="width: 100%;">
+    <tr>
+      <th style="text-align: left;"><b>Hovered Point</b><a style="color: #00ff00"> ⬤</a></th>
+      <th style="text-align: left;"><b>Selected Point</b><a style="color: #ff0000"> ⬤</a></th>
+    </tr>
+    <tr>
+      <td style="width: 50%; vertical-align: top; text-align: left;">
+        id: <a v-if="hoveredPointIndex !== null">{{ datapoints[hoveredPointIndex].id }}</a><br>
+        position: <a v-if="hoveredPointIndex !== null">{{ datapoints[hoveredPointIndex].position }}</a><br>
+        label: <a v-if="hoveredPointIndex !== null">{{ datapoints[hoveredPointIndex].label }}</a><br>
+        is landmark: <a v-if="hoveredPointIndex !== null">{{ datapoints[hoveredPointIndex].is_landmark }}</a><br>
+        average local error: <a v-if="hoveredPointIndex !== null">{{ metrics !== null ? metrics.average_local_error[hoveredPointIndex].toFixed(metricsDecimalPlaces) : "" }}</a><br>
+        text: <a v-if="hoveredPointIndex !== null">{{ datapoints[hoveredPointIndex].text }}</a><br>
+      </td>
+      <td style="width: 50%; vertical-align: top; text-align: left;">
+        id: <a v-if="selectedPointIndex !== null">{{ datapoints[selectedPointIndex].id }}</a><br>
+        position: <a v-if="selectedPointIndex !== null">{{ datapoints[selectedPointIndex].position }}</a><br>
+        label: <a v-if="selectedPointIndex !== null">{{ datapoints[selectedPointIndex].label }}</a><br>
+        is landmark: <a v-if="selectedPointIndex !== null">{{ datapoints[selectedPointIndex].is_landmark }}</a><br>
+        average local error: <a v-if="selectedPointIndex !== null">{{ metrics !== null ? metrics.average_local_error[selectedPointIndex].toFixed(metricsDecimalPlaces) : "" }}</a><br>
+        text: <a v-if="selectedPointIndex !== null">{{ datapoints[selectedPointIndex].text }}</a><br>
+      </td>
+    </tr>
+  </table>
 </template>
 
 <script>
