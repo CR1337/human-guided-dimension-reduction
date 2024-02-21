@@ -61,6 +61,7 @@
         <br>
 
         <b>3. Move the landmarks.</b><br>
+        <br>
         <b>4. Perform the dimensionality reduction.</b>
         <div>
           <label for="imds">Inverse MDS algorithm: </label>
@@ -81,7 +82,7 @@
           <label for="k">k: </label>
           <input
             v-model="k" type="number" name="k" min="1" max="1000" step="1" @change="kChanged"
-            :disabled="selectedLmds == null || !selectedLmds.points_calculated"
+            :disabled="selectedLmds == null || !selectedLmds.points_calculated || metrics == null"
           ><br>
           <table>
             <tr>
@@ -132,6 +133,9 @@
 
         <div v-if="busy">
           <b style="color: #ff0000">busy...</b>
+        </div>
+        <div v-if="calculatingMetrics">
+          <b style="color: #ff0000">calculating metrics...</b>
         </div>
       </td>
     </tr>
@@ -220,6 +224,7 @@ export default {
           coloring: 'label',
 
           busy: false,
+          calculatingMetrics: false,
           metricsDecimalPlaces: 3
         };
     },
@@ -346,14 +351,17 @@ export default {
 
       getMetrics() {
         this.metrics = null;
-        this.chosenK = this.k;
+        this.calculatingMetrics = true;
+        this.coloring = 'label';
         fetch(`http://${this.host}:5000/lmds/${this.selectedLmdsId}/metrics?k=${this.k}`)
             .then((response) => {
                 return response.json();
             }).then((data) => {
                 this.metrics = data.metrics;
+                this.calculatingMetrics = false;
             }).catch((error) => {
                 console.error(error);
+                this.calculatingMetrics = false;
             });
       },
 
