@@ -13,18 +13,17 @@ from neighbors import CachedNeighbors
 def balanced_heuristic(
     dataset: pd.DataFrame, num_landmarks: int, seed: int
 ) -> pd.DataFrame:
-    df = dataset.copy().sample(frac=1, random_state=seed)
-    landmarks = pd.DataFrame(columns=df.columns)
-
+    df = dataset.sample(frac=1, random_state=seed)
     label_dfs = [df[df['label'] == label] for label in df['label'].unique()]
     Random(seed).shuffle(label_dfs)
 
-    for i, label_df in zip(range(num_landmarks), itertools.cycle(label_dfs)):
-        landmarks = pd.concat(
-            [landmarks, label_df.iloc[i % num_landmarks].to_frame().T]
+    return pd.concat([
+        label_df.iloc[i % num_landmarks].to_frame().T
+        for i, label_df in zip(
+            range(num_landmarks),
+            itertools.cycle(label_dfs)
         )
-
-    return landmarks
+    ])
 
 
 class Lmds:
