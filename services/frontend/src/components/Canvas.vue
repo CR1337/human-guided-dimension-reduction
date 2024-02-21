@@ -458,7 +458,6 @@ export default {
                 this.$emit('framerateChanged', p5.frameRate().toFixed(2));
             }
             if (this.needRerender) {
-                console.log(this.coloring);
                 p5.background(0);
                 this.drawAxes(p5);
                 this.drawPoints(p5);
