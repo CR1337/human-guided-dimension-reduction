@@ -63,7 +63,7 @@ class Lmds:
         if heuristic == "random":
             self._heuristic_func = random_landmarks_heuristic
         elif heuristic == "first":
-            self._heuristic_func = lambda dataset, num_landmarks: dataset.head(num_landmarks)
+            self._heuristic_func = lambda dataset, num_landmarks, _: dataset.head(num_landmarks)
         else:
             raise NotImplementedError(f"Unknown heuristic: {heuristic}")
 
