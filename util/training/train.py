@@ -1,5 +1,6 @@
 from lightning import Trainer, seed_everything
 from simple_parsing import parse
+import torch
 
 from args import TrainingArgs
 from data_loading import DataModule
@@ -14,14 +15,22 @@ def main():
     if args.debug:
         wait_for_debugger()
 
-    dm = DataModule(args.data_dir, batch_size=args.batch_size)
+    max_input_size = args.max_landmarks * (args.max_landmarks - 1) // 2
 
-    if args.model_name == "TwoLayerModel":
+    dm = DataModule(args, max_input_size)
+
+    if args.model_name == "OneLayerModel":
+        from neural_networks import OneLayerModel
+
+        nn = OneLayerModel(max_input_size, args.model_params[0])
+    elif args.model_name == "TwoLayerModel":
         from neural_networks import TwoLayerModel
 
-        model = TwoLayerModel(args.in_features, args.model_params)
+        nn = TwoLayerModel(max_input_size, args.model_params)
     else:
         raise ValueError(f"Unknown model name: {args.model_name}")
+    
+    model = BasicModel(nn, args.learning_rate)
 
     trainer = Trainer(
         precision=args.precision,
@@ -32,7 +41,10 @@ def main():
 
     trainer.fit(model, dm)
 
-    # TODO: SAVE MODEL
+    # We now want to save the weights of the neural network
+    checkpoint_path = f"checkpoints/{args.run_name}.ckpt"
+    torch.save(model.model.state_dict(), checkpoint_path)
+
 
 
 def wait_for_debugger(port: int = 56789):

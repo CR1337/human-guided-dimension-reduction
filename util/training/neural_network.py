@@ -1,10 +1,24 @@
 import torch
 import torch.nn as nn
 
+class OneLayerModel(nn.Module):
+    # A basic one layer neural network
+    # Since we are allowing at max 30 landmarks the top triangle (minus the diagonal) of the matrix will have 29*30/2 = 435 elements
+    def __init__(self, in_features=435, param=32):
+        super().__init__()
+        self.fc1 = nn.Linear(in_features, param)
+        self.fc2 = nn.Linear(param, in_features)
+
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+
+
 class TwoLayerModel(nn.Module):
     # A basic 2 layer neural network
-    # Since we are allowing at max 30 landmarks the distance matrix is max 90 big
-    def __init__(self, in_features=90, param_list=[32, 16]):
+    # Since we are allowing at max 30 landmarks the top triangle (minus the diagonal) of the matrix will have 29*30/2 = 435 elements
+    def __init__(self, in_features=435, param_list=[32, 16]):
         super().__init__()
         if len(param_list) != 2:
             raise ValueError("The model_params list should have 2 elements")
