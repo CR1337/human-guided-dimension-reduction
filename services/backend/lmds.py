@@ -14,20 +14,18 @@ def balanced_heuristic(
     dataset: pd.DataFrame, num_landmarks: int, seed: int
 ) -> pd.DataFrame:
     df = dataset.sample(frac=1, random_state=seed)
-    label_dfs = [df[df['label'] == label] for label in df['label'].unique()]
+    label_dfs = [df[df["label"] == label] for label in df["label"].unique()]
     Random(seed).shuffle(label_dfs)
 
-    return pd.concat([
-        label_df.iloc[i % num_landmarks].to_frame().T
-        for i, label_df in zip(
-            range(num_landmarks),
-            itertools.cycle(label_dfs)
-        )
-    ])
+    return pd.concat(
+        [
+            label_df.iloc[i % num_landmarks].to_frame().T
+            for i, label_df in zip(range(num_landmarks), itertools.cycle(label_dfs))
+        ]
+    )
 
 
 class Lmds:
-
     HEURISTICS: List[str] = ["balanced", "random", "first"]
     DISTANCE_METRICS: List[str] = ["euclidean", "cosine"]
     LANDMARK_AMOUNT_RANGE: Tuple[int, int] = (10, 30)
@@ -64,23 +62,22 @@ class Lmds:
         dimension: int = 2,
         use_small: bool = True,
         debug: bool = False,
+        create_dataset: bool = False,
     ):
         if debug:
             wait_for_debugger()
             CachedNeighbors.ALL_NEIGHBORS_768D_FILENAME = (
-                './volumes/data/imdb_{distance_metric}_neighbors_small.bin'
+                "./volumes/data/imdb_{distance_metric}_neighbors_small.bin"
             )
 
         self._heuristic = heuristic
         if heuristic == "random":
-            self._heuristic_func = (
-                lambda dataset, num_landmarks, seed:
-                    dataset.sample(n=num_landmarks, random_state=seed)
+            self._heuristic_func = lambda dataset, num_landmarks, seed: dataset.sample(
+                n=num_landmarks, random_state=seed
             )
         elif heuristic == "first":
-            self._heuristic_func = (
-                lambda dataset, num_landmarks, _:
-                    dataset.head(num_landmarks)
+            self._heuristic_func = lambda dataset, num_landmarks, _: dataset.head(
+                num_landmarks
             )
         elif heuristic == "balanced":
             self._heuristic_func = balanced_heuristic
@@ -93,9 +90,7 @@ class Lmds:
         elif distance_metric == "cosine":
             self._distance_metric_func = cosine_distances
         else:
-            raise NotImplementedError(
-                f"Unknown distance metric: {distance_metric}"
-            )
+            raise NotImplementedError(f"Unknown distance metric: {distance_metric}")
 
         self._num_landmarks = num_landmarks
         self._dataset = dataset
@@ -112,7 +107,8 @@ class Lmds:
         self._landmarks_reduces = False
         self._points_calculated = False
 
-        self._metrics = Metrics(distance_metric, use_small)
+        if not create_dataset:
+            self._metrics = Metrics(distance_metric, use_small)
 
     @property
     def distance_metric(self) -> str:
@@ -155,14 +151,14 @@ class Lmds:
         """
         Returns the high dimensional embeddings of the landmarks.
         """
-        return np.vstack(self._landmarks['embeddings'].apply(np.array))
+        return np.vstack(self._landmarks["embeddings"].apply(np.array))
 
     @cached_property
     def low_landmark_embeddings(self) -> np.array:
         """
         Returns the 2D embeddings of the landmarks.
         """
-        return np.vstack(self._landmarks['position'].apply(np.array))
+        return np.vstack(self._landmarks["position"].apply(np.array))
 
     def distances(self, vector1: np.array, vector2: np.array) -> np.ndarray:
         return self._distance_metric_func(vector1, vector2)
@@ -173,9 +169,7 @@ class Lmds:
         return self._metrics.calculate_all_metrics(self.all_points, k)
 
     def select_landmarks(self, seed: int = 42):
-        self._landmarks = self._heuristic_func(
-            self._dataset, self._num_landmarks, seed
-        )
+        self._landmarks = self._heuristic_func(self._dataset, self._num_landmarks, seed)
 
     def reduce_landmarks(self):
         if not self.landmarks_selected:
@@ -203,9 +197,7 @@ class Lmds:
             return []
         self._L = np.zeros((len(self._landmarks), self._dimension))
         for i in range(self._dimension):
-            self._L[:, i] = self._eigenvectors[:, i] * np.sqrt(
-                self._eigenvalues[i]
-            )
+            self._L[:, i] = self._eigenvectors[:, i] * np.sqrt(self._eigenvalues[i])
 
         # Append the position of the landmarks to the dataset
         self._landmarks = self._landmarks.assign(
@@ -219,13 +211,12 @@ class Lmds:
             raise RuntimeError("Landmarks not reduced!")
 
         # Compute new delta_n using one of the imds algorithms
-        if imds_algorithm == 'trivial':
+        if imds_algorithm == "trivial":
             # Just use the low dimensional distances
             # as new high dimensional delta_n
             self._delta_n = (
                 self._distance_metric_func(
-                    self.low_landmark_embeddings,
-                    self.low_landmark_embeddings
+                    self.low_landmark_embeddings, self.low_landmark_embeddings
                 )
                 ** 2
             )
@@ -244,33 +235,24 @@ class Lmds:
         L_sharp = np.zeros((self._dimension, len(self._landmarks)))
         for i in range(self._dimension):
             L_sharp[i, :] = (
-                self._eigenvectors[:, i].transpose() * 1 / np.sqrt(
-                    self._eigenvalues[i]
-                )
+                self._eigenvectors[:, i].transpose() * 1 / np.sqrt(self._eigenvalues[i])
             )
 
         # We first need to get the embeddings of the other points
-        other_points = self._dataset[
-            ~self._dataset.index.isin(self._landmarks.index)
-        ]
-        other_embeddings = np.vstack(
-            other_points["embeddings"].apply(np.array)
-        )
+        other_points = self._dataset[~self._dataset.index.isin(self._landmarks.index)]
+        other_embeddings = np.vstack(other_points["embeddings"].apply(np.array))
 
         # We compute for each point the distance to the landmarks
         distance_to_landmarks = (
-            self._distance_metric_func(
-                other_embeddings, self.high_landmark_embeddings
-            ) ** 2
+            self._distance_metric_func(other_embeddings, self.high_landmark_embeddings)
+            ** 2
         )
 
         # Going through each point, we compute its position
         # by -1/2 * L_sharp * (distance_to_landmarks - mean_distance)
         positions = np.zeros((len(other_points), self._dimension))
         for i in range(len(other_points)):
-            position = -1 / 2 * (
-                L_sharp.dot(distance_to_landmarks[i] - mean_distance)
-            )
+            position = -1 / 2 * (L_sharp.dot(distance_to_landmarks[i] - mean_distance))
             positions[i, :] = position
 
         if do_pca:
@@ -304,13 +286,11 @@ class Lmds:
         self._landmarks = self._landmarks.assign(
             position=X_new[: len(self._landmarks), :].tolist(), landmark=True
         )
-        return X_new[len(self._landmarks):, :]
+        return X_new[len(self._landmarks) :, :]
 
     def _compute_eigenstuff(self) -> Tuple[np.ndarray, np.ndarray]:
         # H is the mean centering matrix
-        H = -np.ones(
-            (self._num_landmarks, self._num_landmarks)
-        ) / self._num_landmarks
+        H = -np.ones((self._num_landmarks, self._num_landmarks)) / self._num_landmarks
         np.fill_diagonal(H, 1 - 1 / self._num_landmarks)
 
         # B is the mean centered "inner-product" matrix
