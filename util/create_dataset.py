@@ -1,21 +1,19 @@
 import argparse
-
 import pickle
 import random
-import pandas as pd
 from typing import List, Dict
-import numpy as np
-from tqdm import tqdm
 import os
-import jsonlines
-
 from os import path
 import sys
+
+import jsonlines
+from tqdm import tqdm
+import numpy as np
+import pandas as pd
 
 sys.path.append(
     path.dirname(path.dirname(path.abspath(__file__))) + "/services/backend"
 )
-# We need to import metrics and neighbors to allow for the import of Lmds
 from lmds import Lmds  # noqa: E402
 
 
@@ -26,32 +24,32 @@ def parse_args():
         "-ts",
         "--train_size",
         type=int,
-        default=1000,
+        default=52_500,
         help="Number of samples to generate",
     )
     parser.add_argument(
         "-vs",
         "--validation_size",
-        default=500,
+        default=5_250,
         type=float,
         help="Size of the validation set",
     )
     parser.add_argument(
-        "-tes", "--test_size", default=500, type=float, help="Size of the test set"
+        "-tes", "--test_size", default=5_250, type=float, help="Size of the test set"
     )
     parser.add_argument(
         "-ll",
         "--landmark_lower_bound",
         default=10,
         type=int,
-        help="Lower bound for number of landmarks",
+        help="Lower bound for number of landmarks (Including)",
     )
     parser.add_argument(
         "-ul",
         "--landmark_upper_bound",
         default=30,
         type=int,
-        help="Upper bound for number of landmarks",
+        help="Upper bound for number of landmarks (Including)",
     )
     parser.add_argument(
         "-dm",
@@ -64,6 +62,7 @@ def parse_args():
     parser.add_argument(
         "--debug", action="store_true", help="Wait for debugger to attach"
     )
+    parser.add_argument("-d", "--data_path", type=str, help="Path to the data", default="./volumes/data/imdb_embeddings_small.pkl")
     return parser.parse_args()
 
 
@@ -72,15 +71,18 @@ def main():
     if args.debug:
         wait_for_debugger()
 
-    with open("./volumes/data/imdb_embeddings_small.pkl", "rb") as file:
+    with open(args.data_path, "rb") as file:
         dataset = pickle.load(file)
+
+    # Since in python ranges are excluding the upper bound, we need to add 1
+    landmark_upper_bound = args.landmark_upper_bound + 1
 
     num_samples = args.train_size + args.validation_size + args.test_size
     samples_per_landmark_count = num_samples // (
-        args.landmark_upper_bound - args.landmark_lower_bound
+        landmark_upper_bound - args.landmark_lower_bound
     )
     random.seed(args.seed)
-    seeds = random.sample(range(100000), samples_per_landmark_count)
+    seeds = random.sample(range(1_000_000), samples_per_landmark_count)
 
     train_seed_count = int(args.train_size / num_samples * samples_per_landmark_count)
     val_seed_count = int(
@@ -91,15 +93,20 @@ def main():
     test_seeds = seeds[train_seed_count + val_seed_count :]
 
     train, val, test = [], [], []
-    # TODO: Off by one error?
     for i in tqdm(
-        range(args.landmark_lower_bound, args.landmark_upper_bound),
+        range(args.landmark_lower_bound, landmark_upper_bound),
         desc="Generating data. For each number of landmarks independently",
     ):
         train += generate_data(i, dataset, train_seeds, args.distance_metric)
         val += generate_data(i, dataset, val_seeds, args.distance_metric)
         test += generate_data(i, dataset, test_seeds, args.distance_metric)
 
+    # This is slow, but it is only done once and a sanity check to make sure that the sets are disjoint
+    for train_example in train:
+        if train_example in val or train_example in test:
+            raise ValueError("Train and validation or test set overlap")
+
+    print("Saving datasets")
     os.makedirs(args.data_dir, exist_ok=True)
     with open(args.data_dir + "/train.jsonl", "wb+") as file:
         with jsonlines.Writer(file, compact=True) as writer:

@@ -13,6 +13,7 @@ from model import BasicModel
 WANDB_PROJECT = "human-guided-DR"
 WANDB_ENTITY = "frederic_sadrieh"
 
+
 def main(is_sweep=None, config_path=None):
     if is_sweep:
         wandb.init()
@@ -25,12 +26,11 @@ def main(is_sweep=None, config_path=None):
 
     if args.debug:
         wait_for_debugger()
+    if args.debug or args.offline:
+        os.environ["WANDB_MODE"] = "dryrun"
 
     wandb_logger = WandbLogger(
-        project=WANDB_PROJECT,
-        entity=WANDB_ENTITY,
-        log_model="all",
-        save_dir="logs/"
+        project=WANDB_PROJECT, entity=WANDB_ENTITY, log_model="all", save_dir="logs/"
     )
     wandb_logger.log_hyperparams(dataclasses.asdict(args))
 
@@ -43,18 +43,30 @@ def main(is_sweep=None, config_path=None):
 
         if args.model_params is None or isinstance(args.model_params, list):
             raise ValueError("One parameter is required for OneLayerModel.")
-        nn = OneLayerModel(max_input_size, args.model_params)
+
+        nn = OneLayerModel(
+            max_input_size,
+            args.model_params,
+            args.inner_activation,
+            args.end_activation,
+        )
+
     elif args.model_name == "TwoLayerModel":
         from neural_network import TwoLayerModel
 
         if not isinstance(args.model_params, list) or len(args.model_params) != 2:
             raise ValueError("The model_params list should have 2 elements")
 
-        nn = TwoLayerModel(max_input_size, args.model_params)
+        nn = TwoLayerModel(
+            max_input_size,
+            args.model_params,
+            args.inner_activation,
+            args.end_activation,
+        )
     else:
         raise ValueError(f"Unknown model name: {args.model_name}")
 
-    model = BasicModel(nn, args.learning_rate)
+    model = BasicModel(nn, args.learning_rate, args.beta1, args.beta2, args.epsilon)
 
     trainer = Trainer(
         precision=args.precision,

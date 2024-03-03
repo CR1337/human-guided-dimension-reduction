@@ -16,6 +16,7 @@ class DataModule(L.LightningDataModule):
         self.val_file = str(self.data_dir / args.val_file)
         self.test_file = str(self.data_dir / args.test_file)
         self.max_landmarks = args.max_landmarks
+        self.num_workers = args.num_workers
 
     def prepare_data(self) -> None:
         # Prepare data by checking cache and processing datasets if necessary
@@ -25,9 +26,7 @@ class DataModule(L.LightningDataModule):
                 f"Could not find cached processed dataset: {cache_path}, creating it now..."
             )
             # Load and process dataset if not cached
-            processed_datasets = self.load_and_process_dataset(
-                str(self.data_dir / "tokenized")
-            )
+            processed_datasets = self.load_and_process_dataset()
             logger.info(f"Saving dataset to {cache_path}...")
             processed_datasets.save_to_disk(cache_path)
         else:
@@ -48,7 +47,7 @@ class DataModule(L.LightningDataModule):
         self.val_dataset = processed_datasets["val"]
         self.test_dataset = processed_datasets["test"]
 
-    def load_and_process_dataset(self, tokenized_data_dir):
+    def load_and_process_dataset(self):
         # Define paths for training and validation data files
         data_files = {
             "train": self.train_file,
@@ -102,21 +101,22 @@ class DataModule(L.LightningDataModule):
         return False, cache_path
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=None, collate_fn=self.collate_fn, shuffle=True)
+        return DataLoader(self.train_dataset, batch_size=None, collate_fn=self.collate_fn, shuffle=True, num_workers=self.num_workers)
 
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, batch_size=None, collate_fn=self.collate_fn, shuffle=False)
+        return DataLoader(self.val_dataset, batch_size=None, collate_fn=self.collate_fn, shuffle=False, num_workers=self.num_workers)
 
     def test_dataloader(self):
-        return DataLoader(self.test_dataset, batch_size=None, collate_fn=self.collate_fn, shuffle=False)
+        return DataLoader(self.test_dataset, batch_size=None, collate_fn=self.collate_fn, shuffle=False, num_workers=self.num_workers)
     
     def collate_fn(self, batch):
         inputs = torch.Tensor(batch["input"])
         labels = torch.Tensor(batch["label"])
+        masks = torch.Tensor(batch["mask"]).int()
         return {
             "input": inputs,
             "label": labels,
-        
+            "mask": masks
         }
 
 
@@ -130,10 +130,14 @@ def make_process_function(max_landmarks):
             torch.tensor(_take_upper_triangle(_pad_array(np.asarray(label))))
             for label in examples["label"]
         ]
+        masks = [
+            torch.where(label != -1) for label in labels
+        ]
 
         return {
             "input": inputs,
             "label": labels,
+            "mask": masks,
         }
 
     def _pad_array(array):
@@ -141,6 +145,7 @@ def make_process_function(max_landmarks):
             array,
             ((0, max_landmarks - array.shape[0]), (0, max_landmarks - array.shape[1])),
             mode="constant",
+            constant_values=-1,
         )
 
     def _take_upper_triangle(array: np.ndarray) -> List[float]:
