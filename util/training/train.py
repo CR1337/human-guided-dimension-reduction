@@ -5,6 +5,7 @@ import torch
 import os
 from lightning.pytorch.loggers.wandb import WandbLogger
 import dataclasses
+import yaml
 
 from args import TrainingArgs
 from data_loading import DataModule
@@ -78,9 +79,20 @@ def main(is_sweep=None, config_path=None):
     trainer.fit(model, dm)
 
     # We now want to save the weights of the neural network
-    os.makedirs("checkpoints", exist_ok=True)
-    checkpoint_path = f"checkpoints/{args.run_name}.ckpt"
-    torch.save(model.model.state_dict(), checkpoint_path)
+    if not args.offline:
+        checkpoint_path = f"checkpoints/{wandb_logger.version}"
+        os.makedirs(checkpoint_path, exist_ok=True)
+        print(f"Saving model to {checkpoint_path}")
+        torch.save(model.model.state_dict(), f"{checkpoint_path}/model.ckpt")
+        with open(f"{checkpoint_path}/params.yml", "w+") as f:
+            yaml.dump({
+                "model_name": args.model_name,
+                "max_input_size": max_input_size,
+                "max_landmarks": args.max_landmarks,
+                "model_params": args.model_params,
+                "inner_activation": args.inner_activation,
+                "end_activation": args.end_activation,
+            }, f)
 
 
 def wait_for_debugger(port: int = 56789):

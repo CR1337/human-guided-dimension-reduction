@@ -123,11 +123,11 @@ class DataModule(L.LightningDataModule):
 def make_process_function(max_landmarks):
     def process_function(examples):
         inputs = [
-            torch.tensor(_take_upper_triangle(_pad_array(np.asarray(inp))))
+            process_single_input(np.asarray(inp), max_landmarks)
             for inp in examples["input"]
         ]
         labels = [
-            torch.tensor(_take_upper_triangle(_pad_array(np.asarray(label))))
+            process_single_input(np.asarray(label), max_landmarks)
             for label in examples["label"]
         ]
         masks = [
@@ -140,6 +140,9 @@ def make_process_function(max_landmarks):
             "mask": masks,
         }
 
+    return process_function
+
+def process_single_input(input, max_landmarks):
     def _pad_array(array):
         return np.pad(
             array,
@@ -153,4 +156,4 @@ def make_process_function(max_landmarks):
         values = array[indices]
         return values.tolist()
 
-    return process_function
+    return torch.tensor(_take_upper_triangle(_pad_array(input)))

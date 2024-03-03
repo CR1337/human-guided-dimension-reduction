@@ -8,6 +8,7 @@ from functools import cached_property
 
 from metrics import Metrics
 from neighbors import CachedNeighbors
+from inference import Predictor
 
 
 def balanced_heuristic(
@@ -211,15 +212,21 @@ class Lmds:
             raise RuntimeError("Landmarks not reduced!")
 
         # Compute new delta_n using one of the imds algorithms
+        low_dimensional_distances = (
+            self._distance_metric_func(
+                self.low_landmark_embeddings, self.low_landmark_embeddings
+            )
+            ** 2
+        )
         if imds_algorithm == "trivial":
             # Just use the low dimensional distances
             # as new high dimensional delta_n
-            self._delta_n = (
-                self._distance_metric_func(
-                    self.low_landmark_embeddings, self.low_landmark_embeddings
-                )
-                ** 2
-            )
+            self._delta_n = low_dimensional_distances
+        elif imds_algorithm == "model":
+            # Use the model to predict the high dimensional distances
+            # and use them as new high dimensional delta_n
+            predictor = Predictor()
+            self._delta_n = predictor.inference(low_dimensional_distances)
         else:
             raise RuntimeError(f"Unknown imds algorithm: {imds_algorithm}")
 
@@ -348,7 +355,6 @@ if __name__ == "__main__":
         distance_metric="euclidean",
         num_landmarks=10,
         dataset=dataset,
-        do_pca=False,
         debug=True,
     )
 
@@ -358,7 +364,7 @@ if __name__ == "__main__":
     print(lmds.landmarks)
     print()
 
-    lmds.calculate()
+    lmds.calculate(imds_algorithm="model", do_pca=False)
     print("All points:")
     print(lmds.all_points)
     metrics = lmds.compute_metrics(7)
