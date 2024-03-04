@@ -45,6 +45,10 @@
           <a>{{ newNumLandmarks }}</a>
           <br>
 
+          <label for="seed">Seed: </label>
+          <input v-model="seed" type="number" name="seed" min="0" step="1">
+          <br>
+
           <button @click="newLmds()" :disabled="busy">New LMDS</button>
         </div>
         <br>
@@ -65,7 +69,12 @@
         <br>
 
         <b>3. Move the landmarks.</b><br>
+        <div>
+          <button @click="copyLandmarks()" :disabled="selectedLmdsId == null">Copy Landmarks</button>
+          <button @click="pasteLandmarks()" :disabled="selectedLmdsId == null || !landmarksPastable">Paste Landmarks</button>
+        </div>
         <br>
+
         <b>4. Perform the dimensionality reduction.</b>
         <div>
           <label for="imds">Inverse MDS algorithm: </label>
@@ -202,8 +211,10 @@ export default {
           newDistanceMetric: null,
           newNumLandmarks: 10,
           doPCA: false,
+          seed: 42,
 
           datapoints: [],
+          copiedLandmarks: {},
 
           lmdsIds: [],
           selectedLmdsId: null,
@@ -234,7 +245,7 @@ export default {
                 heuristic: this.newHeuristic,
                 distance_metric: this.newDistanceMetric,
                 num_landmarks: parseInt(this.newNumLandmarks, 10),
-                do_pca: this.doPCA
+                seed: parseInt(this.seed, 10)
             })
         }).then((response) => {
             return response.json();
@@ -309,6 +320,25 @@ export default {
             console.error(error);
             this.busy = false;
         });
+      },
+
+      copyLandmarks() {
+        this.copiedLandmarks[this.selectedLmdsId] = this.datapoints.filter((landmark) => landmark.is_landmark).map((landmark) => ({...landmark}));
+      },
+
+      pasteLandmarks() {
+        let datapoints = this.datapoints.map((datapoint) => ({...datapoint}));
+        for (const landmark of this.copiedLandmarks[this.selectedLmdsId]) {
+          const index = this.datapoints.findIndex((datapoint) => datapoint.id === landmark.id);
+          datapoints.splice(index, 1, landmark);
+        }
+        this.datapoints = datapoints.map((datapoint) => ({...datapoint}));
+
+        if (this.selectedLmds.distance_metric == 'cosine') {
+            this.sortDatapointsByAngle();
+        }
+
+        this.rerender();
       },
 
       getDatapoints() {
@@ -417,6 +447,7 @@ export default {
             this.datapoint.angle = this.datapointAngle(datapoint);
             this.sortDatapointsByAngle();
         }
+        this.datapoints[this.selectedPointIndex] = datapoint;
       },
 
       framerateChanged(framerate) {
@@ -435,6 +466,10 @@ export default {
         distanceMetric() {
           if (this.selectedLmds == null) return null;
           return this.selectedLmds.distance_metric;
+        },
+
+        landmarksPastable() {
+          return this.copiedLandmarks[this.selectedLmdsId] !== undefined;
         }
     }
 }

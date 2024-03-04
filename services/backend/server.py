@@ -11,6 +11,7 @@ DEFAULT_K: int = 7
 DEFAULT_HEURISTIC: str = 'random'
 DEFAULT_DISTANCE_METRIC: str = 'euclidean'
 DEFAULT_NUM_LANDMARKS: int = 10
+DEFAULT_SEED: int = 42
 
 USE_SMALL: bool = True
 
@@ -98,19 +99,17 @@ def route_lmds():
         num_landmarks = request.json.get(
             'num_landmarks', DEFAULT_NUM_LANDMARKS
         )
+        seed = request.json.get('seed', DEFAULT_SEED)
         lmds_id = human_readable_ids.get_new_id().lower().replace(" ", "-")
-        try:
-            lmds = Lmds(
-                heuristic=heuristic,
-                distance_metric=distance_metric,
-                num_landmarks=num_landmarks,
-                dataset=imdb_dataset_small if USE_SMALL else imdb_dataset,
-                use_small=USE_SMALL
-            )
-        except NotImplementedError as ex:
-            return {"message": str(ex)}, 501
+        lmds = Lmds(
+            heuristic=heuristic,
+            distance_metric=distance_metric,
+            num_landmarks=num_landmarks,
+            dataset=imdb_dataset_small if USE_SMALL else imdb_dataset,
+            use_small=USE_SMALL
+        )
         lmds_instances[lmds_id] = lmds
-        lmds.select_landmarks()
+        lmds.select_landmarks(seed=seed)
         lmds.reduce_landmarks()
         return {'lmds': lmds.to_json() | {'id': lmds_id}}, 201
 
