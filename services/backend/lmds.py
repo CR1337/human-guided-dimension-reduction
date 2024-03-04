@@ -30,7 +30,7 @@ class Lmds:
     HEURISTICS: List[str] = ["balanced", "random", "first"]
     DISTANCE_METRICS: List[str] = ["euclidean", "cosine"]
     LANDMARK_AMOUNT_RANGE: Tuple[int, int] = (10, 30)
-    IMDS_ALGORITHMS: List[str] = ["trivial"]
+    IMDS_ALGORITHMS: List[str] = ["trivial", "model", "none"]
 
     _heuristic: str
     _distance_metric: str
@@ -227,6 +227,9 @@ class Lmds:
             # and use them as new high dimensional delta_n
             predictor = Predictor()
             self._delta_n = predictor.inference(low_dimensional_distances)
+        elif imds_algorithm == "none":
+            # Do not change the high dimensional delta_n
+            pass
         else:
             raise RuntimeError(f"Unknown imds algorithm: {imds_algorithm}")
 

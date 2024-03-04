@@ -1,28 +1,21 @@
 import torch
 import os
-import sys
-from os import path
 import yaml
 
 import numpy as np
 from typing import List
 
-sys.path.append(
-    path.dirname(path.dirname(path.dirname(path.abspath(__file__)))) + "/util/training"
-)
-import model  # noqa: E402
-from data_loading import process_single_input  # noqa: E402
-import neural_network  # noqa: E402
+from data_loading import process_single_input
+import neural_network
 
 class Predictor:
     def __init__(self):
         self.nn, max_landmarks = self.load_nn()
-        self.model = model.BasicModel(self.nn)
         self.max_landmarks = max_landmarks
 
     def load_nn(self):
         # Load the model from checkpoints/best
-        model_folder = 'checkpoints/best'
+        model_folder = '/server/checkpoints/best'
         weights = torch.load(os.path.join(model_folder, 'model.ckpt'))
         params = yaml.safe_load(open(os.path.join(model_folder, 'params.yml')))
         if params["model_name"] == "OneLayerModel":
@@ -49,7 +42,7 @@ class Predictor:
         nn_input = process_single_input(distance_matrix, max_landmarks=self.max_landmarks)
         # Get a distance matrix and call self.model(distance_matrix)
         with torch.no_grad():
-            upper_triangle = self.model(nn_input)
+            upper_triangle = self.nn.forward(nn_input)
         # Return the result to matrix form
         return self.unprocess(upper_triangle, distance_matrix.shape[0])
 
