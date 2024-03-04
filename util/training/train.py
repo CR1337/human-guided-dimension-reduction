@@ -42,12 +42,9 @@ def main(is_sweep=None, config_path=None):
     if args.model_name == "OneLayerModel":
         from neural_network import OneLayerModel
 
-        if args.model_params is None or isinstance(args.model_params, list):
-            raise ValueError("One parameter is required for OneLayerModel.")
-
         nn = OneLayerModel(
             max_input_size,
-            args.model_params,
+            args.model_param1,
             args.inner_activation,
             args.end_activation,
         )
@@ -55,12 +52,10 @@ def main(is_sweep=None, config_path=None):
     elif args.model_name == "TwoLayerModel":
         from neural_network import TwoLayerModel
 
-        if not isinstance(args.model_params, list) or len(args.model_params) != 2:
-            raise ValueError("The model_params list should have 2 elements")
-
         nn = TwoLayerModel(
             max_input_size,
-            args.model_params,
+            args.model_param1,
+            args.model_param2,
             args.inner_activation,
             args.end_activation,
         )
@@ -89,7 +84,8 @@ def main(is_sweep=None, config_path=None):
                 "model_name": args.model_name,
                 "max_input_size": max_input_size,
                 "max_landmarks": args.max_landmarks,
-                "model_params": args.model_params,
+                "model_param1": args.model_param1,
+                "model_param2": args.model_param2,
                 "inner_activation": args.inner_activation,
                 "end_activation": args.end_activation,
             }, f)

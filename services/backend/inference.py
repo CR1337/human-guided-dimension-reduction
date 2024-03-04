@@ -21,14 +21,15 @@ class Predictor:
         if params["model_name"] == "OneLayerModel":
             nn = neural_network.OneLayerModel(
                 params["max_input_size"],
-                params["model_params"],
+                params["model_param1"],
                 params["inner_activation"],
                 params["end_activation"],
             )
         elif params["model_name"] == "TwoLayerModel":
             nn = neural_network.TwoLayerModel(
                 params["max_input_size"],
-                params["model_params"],
+                params["model_param1"],
+                params["model_param2"],
                 params["inner_activation"],
                 params["end_activation"],
             )

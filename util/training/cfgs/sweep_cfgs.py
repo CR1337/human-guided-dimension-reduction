@@ -1,12 +1,25 @@
 sweep_cfgs = {
-    "base_sweep": {
-        # TODO: Add all sweepable parameters here
+    "OneModel_sweep": {
         "method": "bayes",
         "metric": {"name": "val/loss", "goal": "minimize"},
+        "program": "train.py --config util/training/cfgs/train.yml",
         "parameters": {
-            "learning_rate": {"min": 1e-5, "max": 1e-3},
-            "beta1": {"min": 0.8, "max": 0.99},
-            "beta2": {"min": 0.9, "max": 0.999},
+            "learning_rate": {"min": 1e-3, "max": 1e0},
+            "model_param1": {"min": 10, "max": 1_000},
+            "inner_activation": {"values": ["relu", "tanh", "sigmoid", "identity"]},
+            "end_activation": {"values": ["relu", "identity"]},
+        },
+    },
+    "TwoModel_sweep": {
+        "method": "bayes",
+        "metric": {"name": "val/loss", "goal": "minimize"},
+        "program": "train.py --config util/training/cfgs/train.yml",
+        "parameters": {
+            "learning_rate": {"min": 1e-3, "max": 1e0},
+            "model_param1": {"min": 10, "max": 1_000},
+            "model_param2": {"min": 10, "max": 1_000},
+            "inner_activation": {"values": ["relu", "tanh", "sigmoid", "identity"]},
+            "end_activation": {"values": ["relu", "identity"]},
         },
     }
 }

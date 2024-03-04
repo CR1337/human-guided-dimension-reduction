@@ -8,3 +8,4 @@ volumes/data/**
 checkpoints*
 util/training/data*
 logs*
+wandb*

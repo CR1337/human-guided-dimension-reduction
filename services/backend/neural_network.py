@@ -26,14 +26,15 @@ class TwoLayerModel(nn.Module):
     def __init__(
         self,
         in_features=435,
-        param_list=[32, 16],
+        param1 = 32,
+        param2 = 64,
         inner_activation="relu",
         end_activation="relu",
     ):
         super().__init__()
-        self.fc1 = nn.Linear(in_features, param_list[0])
-        self.fc2 = nn.Linear(param_list[0], param_list[1])
-        self.fc3 = nn.Linear(param_list[1], in_features)
+        self.fc1 = nn.Linear(in_features, param1)
+        self.fc2 = nn.Linear(param1, param2)
+        self.fc3 = nn.Linear(param2, in_features)
         self.inner_activation = make_activation_func(inner_activation)
         self.end_activation = make_activation_func(end_activation)
 

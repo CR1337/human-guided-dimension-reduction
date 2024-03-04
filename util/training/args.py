@@ -8,7 +8,7 @@ from typing import Literal, List
 class TrainingArgs:
     # Run parameters
     accelerator: Literal["cpu", "cuda"] = "cuda"
-    precision: Literal["32-true", "16-mixed", "bf16-mixed", "64-true"] = "64-true"
+    precision: Literal["32-true", "16-mixed", "bf16-mixed", "64-true"] = "32-true"
     run_name: str = field(alias="-rn", default="default")
     debug: bool = field(alias="--debug", default=False)
     offline: bool = field(alias="--offline", default=False)
@@ -32,7 +32,8 @@ class TrainingArgs:
     # Model parameters
     model_name: str = field(alias="-m", default="TwoLayerModel")
     max_landmarks: int = field(alias="-ml", default=30)
-    model_params: List[str] = list_field(alias="-mp", default=[32, 16])
+    model_param1: int = list_field(alias="-mp1", default=32)
+    model_param2: int = list_field(alias="-mp2", default=64)
     inner_activation: Literal["relu", "tanh", "sigmoid", "identity"] = field(
         default="relu"
     )

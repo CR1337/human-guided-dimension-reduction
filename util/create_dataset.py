@@ -24,7 +24,7 @@ def parse_args():
         "-ts",
         "--train_size",
         type=int,
-        default=52_500,
+        default=10_500,
         help="Number of samples to generate",
     )
     parser.add_argument(
