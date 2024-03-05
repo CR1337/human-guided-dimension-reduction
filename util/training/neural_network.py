@@ -41,7 +41,7 @@ class TwoLayerModel(nn.Module):
     def forward(self, x):
         x = self.inner_activation(self.fc1(x))
         x = self.inner_activation(self.fc2(x))
-        x = self.end_activation(x)
+        x = self.end_activation(self.fc3(x))
         return x
 
 

@@ -53,11 +53,11 @@ def main(is_sweep=None, config_path=None):
         from neural_network import TwoLayerModel
 
         nn = TwoLayerModel(
-            max_input_size,
-            args.model_param1,
-            args.model_param2,
-            args.inner_activation,
-            args.end_activation,
+            in_features=max_input_size,
+            param1=args.model_param1,
+            param2=args.model_param2,
+            inner_activation=args.inner_activation,
+            end_activation=args.end_activation,
         )
     else:
         raise ValueError(f"Unknown model name: {args.model_name}")

@@ -66,7 +66,6 @@ class Lmds:
         create_dataset: bool = False,
     ):
         if debug:
-            wait_for_debugger()
             CachedNeighbors.ALL_NEIGHBORS_768D_FILENAME = (
                 "./volumes/data/imdb_{distance_metric}_neighbors_small.bin"
             )
@@ -345,6 +344,7 @@ def wait_for_debugger(port: int = 56789):
 
 if __name__ == "__main__":
     import pickle
+    wait_for_debugger()
 
     with open("./volumes/data/imdb_embeddings_small.pkl", "rb") as file:
         dataset = pickle.load(file)
