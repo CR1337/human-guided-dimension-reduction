@@ -1,6 +1,6 @@
 import lightning as L
 from torch.utils.data.dataloader import DataLoader
-import datasets
+
 import os
 import numpy as np
 from typing import List
@@ -32,6 +32,7 @@ class DataModule(L.LightningDataModule):
             print(f"Found cached processed dataset: {cache_path}.")
 
     def setup(self, stage):
+        import datasets
         # Setup datasets for training or validation stage
         cache_exists, cache_path = self._get_dataset_cache_path()
         assert (
@@ -47,6 +48,7 @@ class DataModule(L.LightningDataModule):
         self.test_dataset = processed_datasets["test"]
 
     def load_and_process_dataset(self):
+        import datasets
         # Define paths for training and validation data files
         data_files = {
             "train": self.train_file,
@@ -83,6 +85,7 @@ class DataModule(L.LightningDataModule):
         return processed_datasets
 
     def _get_dataset_cache_path(self):
+        import datasets
         process_function = make_process_function(self.max_landmarks)
         process_fn_hash = datasets.fingerprint.Hasher.hash(process_function)
 

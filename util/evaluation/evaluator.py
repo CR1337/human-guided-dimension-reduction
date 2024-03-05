@@ -1,5 +1,6 @@
 import pickle
 import argparse
+import numpy as np
 
 import sys
 from os import path
@@ -20,6 +21,7 @@ def parse_args():
         type=int,
         default=10,
     )
+    parser.add_argument("-mp", "--model_path", type=str, default="checkpoints/OneModel_best")
     return parser.parse_args()
 
 
@@ -35,13 +37,28 @@ def main():
         num_landmarks=args.landmark_count,
         dataset=dataset,
         debug=True,
+        model_path=args.model_path
     )
+    metrics = []
     for seed in SEEDS:
         lmds.select_landmarks(seed=seed)
         lmds.reduce_landmarks()
+        lmds.low_landmark_embeddings = move_landmarks(lmds.landmarks["label"])
         lmds.calculate(imds_algorithm=args.imds_algorithm, do_pca=False)
-        metrics = lmds.compute_metrics(7)
-        print(metrics)
+        metrics.append(lmds.compute_metrics(7))
+
+    print(f"Mean metrics for {args.imds_algorithm} with {args.landmark_count} landmarks")
+    print(np.mean(metrics, axis=0))
+    print(np.std(metrics, axis=0))
+
+def move_landmarks(landmark_labels):
+    landmark_positions = []
+    for label in landmark_labels:
+        if label == 0:
+            landmark_positions.append([1,1])
+        else:
+            landmark_positions.append([-1,-1])
+    return np.array(landmark_positions)
 
 
 def wait_for_debugger(port: int = 56789):

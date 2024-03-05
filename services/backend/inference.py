@@ -9,13 +9,13 @@ from data_loading import process_single_input
 import neural_network
 
 class Predictor:
-    def __init__(self):
-        self.nn, max_landmarks = self.load_nn()
+    def __init__(self, model_path: str):
+        self.nn, max_landmarks = self.load_nn(model_path)
         self.max_landmarks = max_landmarks
 
-    def load_nn(self):
+    def load_nn(self, model_path: str):
         # Load the model from checkpoints/best
-        model_folder = '/server/checkpoints/best'
+        model_folder = model_path
         weights = torch.load(os.path.join(model_folder, 'model.ckpt'))
         params = yaml.safe_load(open(os.path.join(model_folder, 'params.yml')))
         if params["model_name"] == "OneLayerModel":

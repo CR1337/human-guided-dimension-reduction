@@ -64,6 +64,7 @@ class Lmds:
         use_small: bool = True,
         debug: bool = False,
         create_dataset: bool = False,
+        model_path: str = "/server/checkpoints/best"
     ):
         if debug:
             CachedNeighbors.ALL_NEIGHBORS_768D_FILENAME = (
@@ -106,6 +107,7 @@ class Lmds:
 
         self._landmarks_reduces = False
         self._points_calculated = False
+        self.model_path = model_path
 
         if not create_dataset:
             self._metrics = Metrics(distance_metric, use_small)
@@ -224,8 +226,9 @@ class Lmds:
         elif imds_algorithm == "model":
             # Use the model to predict the high dimensional distances
             # and use them as new high dimensional delta_n
-            predictor = Predictor()
-            self._delta_n = predictor.inference(low_dimensional_distances)
+            predictor = Predictor(model_path=self.model_path)
+            # Since our model is trained on the normal distance matrix we need to square the result
+            self._delta_n = predictor.inference(low_dimensional_distances) ** 2
         elif imds_algorithm == "none":
             # Do not change the high dimensional delta_n
             pass
