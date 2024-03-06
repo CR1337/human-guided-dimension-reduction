@@ -366,7 +366,7 @@ export default {
 
       getDatapoints() {
         this.busy = true;
-        fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId + '/datapoints?imds_algorithm=' + this.selectedImdsAlgorithm + "&do_pca=" + this.doPca, {cache: "no-store"})
+        fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId + '/datapoints?imds_algorithm=' + this.selectedImdsAlgorithm + "&do_pca=" + this.doPCA, {cache: "no-store"})
             .then((response) => {
                 return response.json();
             }).then((data) => {
