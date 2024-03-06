@@ -78,6 +78,6 @@ def wait_for_debugger(port: int = 56789):
 
 
 if __name__ == "__main__":
-    wait_for_debugger()
+    # wait_for_debugger()
     main()
 
