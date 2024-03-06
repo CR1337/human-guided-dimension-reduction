@@ -72,6 +72,7 @@
         <div>
           <button @click="copyLandmarks()" :disabled="selectedLmdsId == null">Copy Landmarks</button>
           <button @click="pasteLandmarks()" :disabled="selectedLmdsId == null || !landmarksPastable">Paste Landmarks</button>
+          <button @click="resetLandmarks()" :disabled="selectedLmdsId == null">Reset Landmarks</button>
         </div>
         <br>
 
@@ -215,6 +216,7 @@ export default {
 
           datapoints: [],
           copiedLandmarks: {},
+          initialLandmarks: {},
 
           lmdsIds: [],
           selectedLmdsId: null,
@@ -268,6 +270,7 @@ export default {
                 return response.json();
             }).then((data) => {
                 this.datapoints = data.landmarks;
+                this.initialLandmarks[this.selectedLmdsId] = data.landmarks.map((landmark) => ({...landmark}));
                 this.updateCanvas();
             }).catch((error) => {
                 console.error(error);
@@ -327,8 +330,28 @@ export default {
       },
 
       pasteLandmarks() {
+        this.replaceLandmarks(this.copiedLandmarks[this.selectedLmdsId])
+        // let datapoints = this.datapoints.map((datapoint) => ({...datapoint}));
+        // for (const landmark of this.copiedLandmarks[this.selectedLmdsId]) {
+        //   const index = this.datapoints.findIndex((datapoint) => datapoint.id === landmark.id);
+        //   datapoints.splice(index, 1, landmark);
+        // }
+        // this.datapoints = datapoints.map((datapoint) => ({...datapoint}));
+
+        // if (this.selectedLmds.distance_metric == 'cosine') {
+        //     this.sortDatapointsByAngle();
+        // }
+
+        // this.rerender();
+      },
+
+      resetLandmarks() {
+        this.replaceLandmarks(this.initialLandmarks[this.selectedLmdsId]);
+      },
+
+      replaceLandmarks(landmarks) {
         let datapoints = this.datapoints.map((datapoint) => ({...datapoint}));
-        for (const landmark of this.copiedLandmarks[this.selectedLmdsId]) {
+        for (const landmark of landmarks) {
           const index = this.datapoints.findIndex((datapoint) => datapoint.id === landmark.id);
           datapoints.splice(index, 1, landmark);
         }
