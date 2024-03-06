@@ -64,7 +64,7 @@ class Lmds:
         use_small: bool = True,
         debug: bool = False,
         create_dataset: bool = False,
-        model_path: str = "/server/checkpoints/best"
+        model_path: str = "/server/checkpoints/best",
     ):
         if debug:
             CachedNeighbors.ALL_NEIGHBORS_768D_FILENAME = (
@@ -184,6 +184,8 @@ class Lmds:
             )
             ** 2
         )
+        # To cache the distance matrix
+        self._delta_n_old = self._delta_n
 
         # compute eigenvalues and eigenvectors
         self._eigenvalues, self._eigenvectors = self._compute_eigenstuff()
@@ -213,16 +215,13 @@ class Lmds:
             raise RuntimeError("Landmarks not reduced!")
 
         # Compute new delta_n using one of the imds algorithms
-        low_dimensional_distances = (
-            self._distance_metric_func(
-                self.low_landmark_embeddings, self.low_landmark_embeddings
-            )
-
+        low_dimensional_distances = self._distance_metric_func(
+            self.low_landmark_embeddings, self.low_landmark_embeddings
         )
         if imds_algorithm == "trivial":
             # Just use the low dimensional distances
             # as new high dimensional delta_n
-            self._delta_n = low_dimensional_distances ** 2
+            self._delta_n = low_dimensional_distances**2
         elif imds_algorithm == "model":
             # Use the model to predict the high dimensional distances
             # and use them as new high dimensional delta_n
@@ -231,7 +230,7 @@ class Lmds:
             self._delta_n = predictor.inference(low_dimensional_distances) ** 2
         elif imds_algorithm == "none":
             # Do not change the high dimensional delta_n
-            pass
+            self._delta_n = self._delta_n_old
         else:
             raise RuntimeError(f"Unknown imds algorithm: {imds_algorithm}")
 
@@ -347,6 +346,7 @@ def wait_for_debugger(port: int = 56789):
 
 if __name__ == "__main__":
     import pickle
+
     wait_for_debugger()
 
     with open("./volumes/data/imdb_embeddings_small.pkl", "rb") as file:

@@ -14,6 +14,7 @@ class TrainingArgs:
     offline: bool = field(alias="--offline", default=False)
     seed: int = field(alias="-s", default=42)
     num_workers: int = field(alias="-nw", default=0)
+    only_test: bool = field(alias="--only-test", default=False)
 
     # Hyper parameters
     epochs: int = field(alias="-e", default=10)

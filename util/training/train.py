@@ -71,6 +71,9 @@ def main(is_sweep=None, config_path=None):
         logger=wandb_logger,
     )
 
+    if args.only_test:
+        trainer.test(model, dm)
+        return
     trainer.fit(model, dm)
 
     # We now want to save the weights of the neural network
