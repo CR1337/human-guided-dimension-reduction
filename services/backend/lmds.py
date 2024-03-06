@@ -217,12 +217,12 @@ class Lmds:
             self._distance_metric_func(
                 self.low_landmark_embeddings, self.low_landmark_embeddings
             )
-            ** 2
+
         )
         if imds_algorithm == "trivial":
             # Just use the low dimensional distances
             # as new high dimensional delta_n
-            self._delta_n = low_dimensional_distances
+            self._delta_n = low_dimensional_distances ** 2
         elif imds_algorithm == "model":
             # Use the model to predict the high dimensional distances
             # and use them as new high dimensional delta_n
