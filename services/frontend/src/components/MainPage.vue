@@ -183,7 +183,7 @@ export default {
     name: "MainPage",
     components: { Canvas },
     mounted() {
-        fetch('http://' + this.host + ':5000/constants')
+        fetch('http://' + this.host + ':5000/constants', {cache: "no-store"})
           .then((response) => {
               return response.json();
           }).then((data) => {
@@ -265,7 +265,7 @@ export default {
 
       getLandmarks() {
         this.busy = true;
-        fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId + '/landmarks')
+        fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId + '/landmarks', {cache: "no-store"})
             .then((response) => {
                 return response.json();
             }).then((data) => {
@@ -366,7 +366,7 @@ export default {
 
       getDatapoints() {
         this.busy = true;
-        fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId + '/datapoints?imds_algorithm=' + this.selectedImdsAlgorithm + "&do_pca=" + this.doPca)
+        fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId + '/datapoints?imds_algorithm=' + this.selectedImdsAlgorithm + "&do_pca=" + this.doPca, {cache: "no-store"})
             .then((response) => {
                 return response.json();
             }).then((data) => {
@@ -400,7 +400,7 @@ export default {
         this.metrics = null;
         this.calculatingMetrics = true;
         this.coloring = 'label';
-        fetch(`http://${this.host}:5000/lmds/${this.selectedLmdsId}/metrics?k=${this.k}`)
+        fetch(`http://${this.host}:5000/lmds/${this.selectedLmdsId}/metrics?k=${this.k}`, {cache: "no-store"})
             .then((response) => {
                 return response.json();
             }).then((data) => {
@@ -438,7 +438,7 @@ export default {
 
       lmdsSelectionChanged() {
         this.busy = true;
-        fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId)
+        fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId, {cache: "no-store"})
             .then((response) => {
                 return response.json();
             }).then((data) => {
