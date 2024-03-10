@@ -30,7 +30,7 @@ class Lmds:
     HEURISTICS: List[str] = ["balanced", "random", "first"]
     DISTANCE_METRICS: List[str] = ["euclidean", "cosine"]
     LANDMARK_AMOUNT_RANGE: Tuple[int, int] = (10, 30)
-    IMDS_ALGORITHMS: List[str] = ["trivial", "model", "none"]
+    IMDS_ALGORITHMS: List[str] = ["none", "model", "trivial"]
 
     _heuristic: str
     _distance_metric: str
@@ -210,7 +210,7 @@ class Lmds:
 
         self._landmarks_reduced = True
 
-    def calculate(self, imds_algorithm: str, do_pca: bool):
+    def calculate(self, imds_algorithm: str, do_pca: bool = False):
         if not self.landmarks_reduced:
             raise RuntimeError("Landmarks not reduced!")
 
@@ -275,6 +275,8 @@ class Lmds:
         )
 
         self._points_calculated = True
+
+        print(self._no_landmark_points["position"].tolist(), flush=True)
 
     def _pca(self, positions: np.ndarray) -> np.ndarray:
         # We merge the positions of the landmarks and the other points

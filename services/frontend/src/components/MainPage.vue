@@ -83,10 +83,6 @@
             <option v-for="algorithm in imdsAlgorithms" :value="algorithm">{{ algorithm }}</option>
           </select><br>
 
-          <label for="doPCA">PCA normalisation: </label>
-          <input v-model="doPCA" type="checkbox" name="doPCA" :disabled="selectedLmds == null">
-          <br>
-
           <button @click="calculate()" :disabled="selectedLmdsId == null || busy">Calculate</button>
         </div>
         <br>
@@ -211,7 +207,6 @@ export default {
           newHeuristic: null,
           newDistanceMetric: null,
           newNumLandmarks: 10,
-          doPCA: false,
           seed: 42,
 
           datapoints: [],
@@ -366,7 +361,7 @@ export default {
 
       getDatapoints() {
         this.busy = true;
-        fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId + '/datapoints?imds_algorithm=' + this.selectedImdsAlgorithm + "&do_pca=" + this.doPCA, {cache: "no-store"})
+        fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId + '/datapoints?imds_algorithm=' + this.selectedImdsAlgorithm, {cache: "no-store"})
             .then((response) => {
                 return response.json();
             }).then((data) => {

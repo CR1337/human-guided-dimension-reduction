@@ -156,8 +156,7 @@ def route_datapoints(lmds_id: str):
     imds_algorithm = request.args.get(
         'imds_algorithm', Lmds.IMDS_ALGORITHMS[0]
     )
-    do_pca = request.args.get('do_pca', "false") == "true"
-    lmds.calculate(imds_algorithm, do_pca)
+    lmds.calculate(imds_algorithm)
     return {
         'datapoints': dataframe_to_json(lmds.all_points),
         'lmds': lmds.to_json() | {'id': lmds_id}
