@@ -11,7 +11,6 @@
           :datapoints="datapoints"
           :k="k"
           :coloring="coloring"
-          :show-neighbors="showNeighbors"
           :distance-metric="distanceMetric"
           :metrics="metrics"
           @hovered-point-index-changed="hoveredPointIndexChanged"
@@ -326,18 +325,6 @@ export default {
 
       pasteLandmarks() {
         this.replaceLandmarks(this.copiedLandmarks[this.selectedLmdsId])
-        // let datapoints = this.datapoints.map((datapoint) => ({...datapoint}));
-        // for (const landmark of this.copiedLandmarks[this.selectedLmdsId]) {
-        //   const index = this.datapoints.findIndex((datapoint) => datapoint.id === landmark.id);
-        //   datapoints.splice(index, 1, landmark);
-        // }
-        // this.datapoints = datapoints.map((datapoint) => ({...datapoint}));
-
-        // if (this.selectedLmds.distance_metric == 'cosine') {
-        //     this.sortDatapointsByAngle();
-        // }
-
-        // this.rerender();
       },
 
       resetLandmarks() {
@@ -351,11 +338,6 @@ export default {
           datapoints.splice(index, 1, landmark);
         }
         this.datapoints = datapoints.map((datapoint) => ({...datapoint}));
-
-        if (this.selectedLmds.distance_metric == 'cosine') {
-            this.sortDatapointsByAngle();
-        }
-
         this.rerender();
       },
 
@@ -368,16 +350,12 @@ export default {
                 this.datapoints = data.datapoints;
                 this.selectedLmdsId = data.lmds.id;
                 this.selectedLmds = data.lmds;
-                if (this.selectedLmds.distance_metric == 'cosine') {
-                    this.calculateDatapointAngles();
-                    this.sortDatapointsByAngle();
-                } else {
-                  // shuffle datapoints
-                  for (let i = this.datapoints.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [this.datapoints[i], this.datapoints[j]] = [this.datapoints[j], this.datapoints[i]];
-                  }
+
+                for (let i = this.datapoints.length - 1; i > 0; i--) {
+                  const j = Math.floor(Math.random() * (i + 1));
+                  [this.datapoints[i], this.datapoints[j]] = [this.datapoints[j], this.datapoints[i]];
                 }
+
                 this.updateCanvas();
                 this.getMetrics();
             }).catch((error) => {
@@ -405,22 +383,6 @@ export default {
                 console.error(error);
                 this.calculatingMetrics = false;
             });
-      },
-
-      datapointAngle(datapoint) {
-        return Math.atan2(datapoint.position[1], datapoint.position[0]);
-      },
-
-      calculateDatapointAngles() {
-        for (const datapoint of this.datapoints) {
-          datapoint.angle = this.datapointAngle(datapoint);
-        }
-      },
-
-      sortDatapointsByAngle() {
-        this.datapoints.sort((a, b) => {
-            return b.angle - a.angle;
-        });
       },
 
       updateCanvas() {
@@ -461,10 +423,6 @@ export default {
       selectedPointMoved(newPosition) {
         const datapoint = this.datapoints[this.selectedPointIndex];
         datapoint.position = newPosition;
-        if (this.selectedLmds.distance_metric == 'cosine') {
-            this.datapoint.angle = this.datapointAngle(datapoint);
-            this.sortDatapointsByAngle();
-        }
         this.datapoints[this.selectedPointIndex] = datapoint;
       },
 
@@ -475,11 +433,6 @@ export default {
     computed: {
         host() { return window.location.origin.split("/")[2].split(":")[0]; },
         frontendPort() { return window.location.origin.split("/")[2].split(":")[1]; },
-
-        showNeighbors() {
-          if (this.selectedLmds == null) return false;
-          return this.selectedLmds.points_calculated;
-        },
 
         distanceMetric() {
           if (this.selectedLmds == null) return null;
