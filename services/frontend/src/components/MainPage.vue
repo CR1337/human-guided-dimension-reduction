@@ -1,5 +1,19 @@
 <style>
-
+.prevMetricsValue0 {
+  color: #222222
+}
+.prevMetricsValue1 {
+  color: #444444
+}
+.prevMetricsValue2 {
+  color: #666666
+}
+.prevMetricsValue3 {
+  color: #888888
+}
+.prevMetricsValue4 {
+  color: #aaaaaa
+}
 </style>
 
 <template>
@@ -92,38 +106,47 @@
           <input
             v-model="k" type="number" name="k" min="1" max="1000" step="1" @change="kChanged"
             :disabled="selectedLmds == null || !selectedLmds.points_calculated || metrics == null"
-          ><br>
+          >
+          <button @click="clearHistory()" :disabled="prevMetrics.length == 0">Clear History</button>
+          <br>
           <table>
             <tr>
               <th>Metric</th>
-              <th>Value</th>
+              <th>Values</th>
+              <th>History →</th>
+              <th v-for="_ in (prevMetricsMaxLength - 1)">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th>
               <th>Range</th>
             </tr>
             <tr>
               <td>Trustworthiness</td>
               <td><a v-if="metrics !== null">{{ metrics.trustworthiness.toFixed(metricsDecimalPlaces) }}</a><a v-else>-</a></td>
+              <td v-for="i in prevMetricsMaxLength" :class="'prevMetricsValue' + i">
+                <a v-if="prevMetrics.length >= i">{{ prevMetrics[prevMetrics.length - i].trustworthiness.toFixed(metricsDecimalPlaces) }}</a><a v-else>-</a>
+              </td>
               <td>[0 .. <b>1</b>]</td>
             </tr>
             <tr>
               <td>Continuity</td>
               <td><a v-if="metrics !== null">{{ metrics.continuity.toFixed(metricsDecimalPlaces) }}</a><a v-else>-</a></td>
+              <td v-for="i in prevMetricsMaxLength" :class="'prevMetricsValue' + i">
+                <a v-if="prevMetrics.length >= i">{{ prevMetrics[prevMetrics.length - i].continuity.toFixed(metricsDecimalPlaces) }}</a><a v-else>-</a>
+              </td>
               <td>[0 .. <b>1</b>]</td>
             </tr>
             <tr>
               <td>{{ this.k }}-neighborhood hit</td>
               <td><a v-if="metrics !== null">{{ metrics.neighborhood_hit.toFixed(metricsDecimalPlaces) }}</a><a v-else>-</a></td>
+              <td v-for="i in prevMetricsMaxLength" :class="'prevMetricsValue' + i">
+                <a v-if="prevMetrics.length >= i">{{ prevMetrics[prevMetrics.length - i].neighborhood_hit.toFixed(metricsDecimalPlaces) }}</a><a v-else>-</a>
+              </td>
               <td>[0 .. <b>1</b>]</td>
             </tr>
-            <!--
-            <tr>
-              <td>Shepard Goodness</td>
-              <td><a v-if="metrics !== null">{{ metrics.shepard_goodness.toFixed(metricsDecimalPlaces) }}</a><a v-else>-</a></td>
-              <td>[0 .. <b>1</b>]</td>
-            </tr>
-            -->
             <tr>
               <td>Normalized Stress</td>
               <td><a v-if="metrics !== null">{{ metrics.normalized_stress.toFixed(metricsDecimalPlaces) }}</a><a v-else>-</a></td>
+              <td v-for="i in prevMetricsMaxLength" :class="'prevMetricsValue' + i">
+                <a v-if="prevMetrics.length >= i">{{ prevMetrics[prevMetrics.length - i].normalized_stress.toFixed(metricsDecimalPlaces) }}</a><a v-else>-</a>
+              </td>
               <td>[<b>0</b> .. 1]</td>
             </tr>
           </table>
@@ -216,6 +239,8 @@ export default {
           selectedLmdsId: null,
           selectedLmds: null,
           metrics: null,
+          prevMetrics: [],
+          prevMetricsMaxLength: 4,
 
           hoveredPointIndex: null,
           selectedPointIndex: null,
@@ -369,14 +394,23 @@ export default {
         this.getMetrics();
       },
 
+      clearHistory() {
+        this.prevMetrics = [];
+      },
+
       getMetrics() {
-        this.metrics = null;
         this.calculatingMetrics = true;
         this.coloring = 'label';
         fetch(`http://${this.host}:5000/lmds/${this.selectedLmdsId}/metrics?k=${this.k}`, {cache: "no-store"})
             .then((response) => {
                 return response.json();
             }).then((data) => {
+                if (this.metrics !== null) {
+                    this.prevMetrics = [this.metrics].concat(this.prevMetrics);
+                    if (this.prevMetrics.length() > this.prevMetricsMaxLength) {
+                      this.prevMetrics.pop();
+                    }
+                }
                 this.metrics = data.metrics;
                 this.calculatingMetrics = false;
             }).catch((error) => {
