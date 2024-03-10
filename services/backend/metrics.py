@@ -19,8 +19,6 @@ class Metrics:
 
 
     def calculate_all_metrics(self, data: pd.DataFrame, k: int = 7) -> Dict[str, Any]:
-        if k in self.metrics:
-            return self.metrics[k]
         self.data = data
         self.N = len(data)
 

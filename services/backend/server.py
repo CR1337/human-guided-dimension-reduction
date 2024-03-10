@@ -2,7 +2,7 @@ from flask import Flask, request
 from flask_cors import CORS
 from lmds import Lmds
 from typing import Dict, List, Any
-from uuid import uuid4
+import human_readable_ids
 import pandas as pd
 import pickle
 
@@ -11,6 +11,7 @@ DEFAULT_K: int = 7
 DEFAULT_HEURISTIC: str = 'random'
 DEFAULT_DISTANCE_METRIC: str = 'euclidean'
 DEFAULT_NUM_LANDMARKS: int = 10
+DEFAULT_SEED: int = 42
 
 USE_SMALL: bool = True
 
@@ -41,9 +42,9 @@ with open('/server/data/imdb_embeddings_small.pkl', 'rb') as file:
 def dataframe_to_json(dataframe: pd.DataFrame) -> List[Dict[str, Any]]:
     return [
         {
-            "id": index,
+            "id": int(index),
             "text": series["text"],
-            "label": series["label"],
+            "label": str(series["label"]),
             "is_landmark": series["landmark"],
             "position": (
                 series["position"]
@@ -68,19 +69,16 @@ def route_dataset():
         return {'datapoints': dataframe_to_json(imdb_dataset)}, 200
 
 
-@app.route('/heuristics', methods=['GET'])
-def route_heuristics():
-    return {'heuristics': Lmds.HEURISTICS}, 200
-
-
-@app.route('/distance-metrics', methods=['GET'])
-def route_distance_metrics():
-    return {'distance_metrics': Lmds.DISTANCE_METRICS}, 200
-
-
-@app.route('/metrics', methods=['GET'])
-def route_metrics():
-    return {'metrics': METRIC_NAMES}, 200
+@app.route('/constants', methods=['GET'])
+def route_constants():
+    return {
+        'heuristics': Lmds.HEURISTICS,
+        'distance_metrics': Lmds.DISTANCE_METRICS,
+        'metrics': METRIC_NAMES,
+        'min_landmark_amount': Lmds.LANDMARK_AMOUNT_RANGE[0],
+        'max_landmark_amount': Lmds.LANDMARK_AMOUNT_RANGE[1],
+        'imds_algorithms': Lmds.IMDS_ALGORITHMS
+    }, 200
 
 
 @app.route('/lmds', methods=['GET', 'POST'])
@@ -101,21 +99,17 @@ def route_lmds():
         num_landmarks = request.json.get(
             'num_landmarks', DEFAULT_NUM_LANDMARKS
         )
-        do_pca = request.json.get('do_pca', False)
-        lmds_id = str(uuid4())
-        try:
-            lmds = Lmds(
-                heuristic=heuristic,
-                distance_metric=distance_metric,
-                num_landmarks=num_landmarks,
-                dataset=imdb_dataset_small if USE_SMALL else imdb_dataset,
-                do_pca=do_pca,
-                use_small=USE_SMALL
-            )
-        except NotImplementedError as ex:
-            return {"message": str(ex)}, 501
+        seed = request.json.get('seed', DEFAULT_SEED)
+        lmds_id = human_readable_ids.get_new_id().lower().replace(" ", "-")
+        lmds = Lmds(
+            heuristic=heuristic,
+            distance_metric=distance_metric,
+            num_landmarks=num_landmarks,
+            dataset=imdb_dataset_small if USE_SMALL else imdb_dataset,
+            use_small=USE_SMALL
+        )
         lmds_instances[lmds_id] = lmds
-        lmds.select_landmarks()
+        lmds.select_landmarks(seed=seed)
         lmds.reduce_landmarks()
         return {'lmds': lmds.to_json() | {'id': lmds_id}}, 201
 
@@ -159,7 +153,10 @@ def route_datapoints(lmds_id: str):
         return {"message": f"Unknown LMDS instance: {lmds_id}"}, 404
     if not lmds.landmarks_reduced:
         return {"message": "Landmarks have not been reduced yet"}, 400
-    lmds.calculate()
+    imds_algorithm = request.args.get(
+        'imds_algorithm', Lmds.IMDS_ALGORITHMS[0]
+    )
+    lmds.calculate(imds_algorithm)
     return {
         'datapoints': dataframe_to_json(lmds.all_points),
         'lmds': lmds.to_json() | {'id': lmds_id}
