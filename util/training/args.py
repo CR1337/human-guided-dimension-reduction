@@ -16,6 +16,7 @@ class TrainingArgs:
     seed: int = field(alias="-s", default=42)
     num_workers: int = field(alias="-nw", default=0)
     only_test: bool = field(alias="--only-test", default=False)
+    load_model: str = field(alias="-lm", default=None)
 
     # Hyper parameters
     epochs: int = field(alias="-e", default=10)

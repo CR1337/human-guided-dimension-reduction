@@ -49,6 +49,13 @@ class TwoLayerModel(nn.Module):
         x = self.end_activation(self.fc3(x))
         return x
 
+class TrivialModel(nn.Module):
+    # A trivial model that does nothing
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        return x
 
 def make_activation_func(activation: str):
     if activation == "relu":

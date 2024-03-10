@@ -59,8 +59,16 @@ def main(is_sweep=None, config_path=None):
             inner_activation=args.inner_activation,
             end_activation=args.end_activation,
         )
+
+    elif args.model_name == "TrivialModel":
+        from neural_network import TrivialModel
+
+        nn = TrivialModel()
     else:
         raise ValueError(f"Unknown model name: {args.model_name}")
+
+    if args.load_model:
+        nn.load_state_dict(torch.load(os.path.join(args.load_model, 'model.ckpt')))
 
     model = BasicModel(nn, args.learning_rate, args.beta1, args.beta2, args.epsilon)
 
