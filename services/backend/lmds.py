@@ -122,7 +122,7 @@ class Lmds:
 
     @landmarks.setter
     def landmarks(self, landmarks: pd.DataFrame):
-        self._landmarks = landmarks
+        self._landmarks = landmarks.copy()
 
     @property
     def no_landmark_points(self) -> pd.DataFrame:
@@ -148,14 +148,14 @@ class Lmds:
     def points_calculated(self) -> bool:
         return self._points_calculated
 
-    @cached_property
+    @property
     def high_landmark_embeddings(self) -> np.array:
         """
         Returns the high dimensional embeddings of the landmarks.
         """
         return np.vstack(self._landmarks["embeddings"].apply(np.array))
 
-    @cached_property
+    @property
     def low_landmark_embeddings(self) -> np.array:
         """
         Returns the 2D embeddings of the landmarks.
@@ -275,8 +275,6 @@ class Lmds:
         )
 
         self._points_calculated = True
-
-        print(self._no_landmark_points["position"].tolist(), flush=True)
 
     def _pca(self, positions: np.ndarray) -> np.ndarray:
         # We merge the positions of the landmarks and the other points

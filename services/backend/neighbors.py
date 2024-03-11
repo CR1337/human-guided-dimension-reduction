@@ -14,6 +14,8 @@ from typing import Dict, Generator, Tuple, List
 DistanceIndexPairGenerator = Generator[Tuple[int, float], None, None]
 RanksGenerator = Generator[List[int], None, None]
 
+inside_docker: bool = bool(os.environ.get('INSIDE_DOCKER', False))
+
 
 class Neighbors(ABC):
 
@@ -368,6 +370,8 @@ class CachedNeighbors(Neighbors):
     SMALL_SUFFIX: str = "_small"
     ALL_NEIGHBORS_768D_FILENAME: str = (
         "/server/data/imdb_{distance_metric}_neighbors{small_suffix}.bin"
+        if inside_docker
+        else "volumes/data/imdb_{distance_metric}_neighbors{small_suffix}.bin"
     )
 
     _file: io.BufferedReader

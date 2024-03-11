@@ -332,7 +332,7 @@ export default {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                landmarks: this.datapoints
+                landmarks: this.datapoints.filter((landmark) => landmark.is_landmark)
             })
         }).then((response) => {
             return response.json();
@@ -407,7 +407,7 @@ export default {
             }).then((data) => {
                 if (this.metrics !== null) {
                     this.prevMetrics = [this.metrics].concat(this.prevMetrics);
-                    if (this.prevMetrics.length() > this.prevMetricsMaxLength) {
+                    if (this.prevMetrics.length > this.prevMetricsMaxLength) {
                       this.prevMetrics.pop();
                     }
                 }

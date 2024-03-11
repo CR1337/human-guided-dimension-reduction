@@ -5,6 +5,7 @@ from typing import Dict, List, Any
 import human_readable_ids
 import pandas as pd
 import pickle
+import os
 
 
 DEFAULT_K: int = 7
@@ -30,12 +31,24 @@ CORS(app)
 
 
 lmds_instances: Dict[str, Lmds] = {}
+inside_docker: bool = bool(os.environ.get('INSIDE_DOCKER', False))
 
 imdb_dataset: pd.DataFrame
-with open('/server/data/imdb_embeddings.pkl', 'rb') as file:
+imdb_dataset_path: str = (
+    '/server/data/imdb_embeddings.pkl'
+    if inside_docker
+    else 'volumes/data/imdb_embeddings.pkl'
+)
+with open(imdb_dataset_path, 'rb') as file:
     imdb_dataset = pickle.load(file)
+
 imdb_dataset_small: pd.DataFrame
-with open('/server/data/imdb_embeddings_small.pkl', 'rb') as file:
+imdb_dataset_small_path: str = (
+    '/server/data/imdb_embeddings_small.pkl'
+    if inside_docker
+    else 'volumes/data/imdb_embeddings_small.pkl'
+)
+with open(imdb_dataset_small_path, 'rb') as file:
     imdb_dataset_small = pickle.load(file)
 
 

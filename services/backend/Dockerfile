@@ -15,4 +15,6 @@ RUN chmod +x /server/neighbors/neighbors
 
 COPY . /server/.
 
+ENV INSIDE_DOCKER=1
+
 CMD ["python3", "server.py"]
