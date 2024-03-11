@@ -1,55 +1,22 @@
 from flask import Flask, request
 from flask_cors import CORS
 from lmds import Lmds
+from dataset import Dataset
+from metrics import Metrics
 from typing import Dict, List, Any
 import human_readable_ids
 import pandas as pd
-import pickle
-import os
 
 
 DEFAULT_K: int = 7
-DEFAULT_HEURISTIC: str = 'random'
-DEFAULT_DISTANCE_METRIC: str = 'euclidean'
 DEFAULT_NUM_LANDMARKS: int = 10
 DEFAULT_SEED: int = 42
-
-USE_SMALL: bool = True
-
-METRIC_NAMES: List[str] = [
-    "trustworthiness",
-    "continuity",
-    "neighborhood_hit",
-    "shepard_goodness",
-    "average_local_error",
-    "normalized_stress"
-]  # TODO: put somewhere else
-
 
 app = Flask(__name__)
 CORS(app)
 
 
 lmds_instances: Dict[str, Lmds] = {}
-inside_docker: bool = bool(os.environ.get('INSIDE_DOCKER', False))
-
-imdb_dataset: pd.DataFrame
-imdb_dataset_path: str = (
-    '/server/data/imdb_embeddings.pkl'
-    if inside_docker
-    else 'volumes/data/imdb_embeddings.pkl'
-)
-with open(imdb_dataset_path, 'rb') as file:
-    imdb_dataset = pickle.load(file)
-
-imdb_dataset_small: pd.DataFrame
-imdb_dataset_small_path: str = (
-    '/server/data/imdb_embeddings_small.pkl'
-    if inside_docker
-    else 'volumes/data/imdb_embeddings_small.pkl'
-)
-with open(imdb_dataset_small_path, 'rb') as file:
-    imdb_dataset_small = pickle.load(file)
 
 
 def dataframe_to_json(dataframe: pd.DataFrame) -> List[Dict[str, Any]]:
@@ -74,23 +41,16 @@ def route_index():
     return {"message": "Hello, this is the backend!"}, 200
 
 
-@app.route('/dataset', methods=['GET'])
-def route_dataset():
-    if USE_SMALL:
-        return {'datapoints': dataframe_to_json(imdb_dataset_small)}, 200
-    else:
-        return {'datapoints': dataframe_to_json(imdb_dataset)}, 200
-
-
 @app.route('/constants', methods=['GET'])
 def route_constants():
     return {
         'heuristics': Lmds.HEURISTICS,
         'distance_metrics': Lmds.DISTANCE_METRICS,
-        'metrics': METRIC_NAMES,
+        'metrics': Metrics.METRIC_NAMES,
         'min_landmark_amount': Lmds.LANDMARK_AMOUNT_RANGE[0],
         'max_landmark_amount': Lmds.LANDMARK_AMOUNT_RANGE[1],
-        'imds_algorithms': Lmds.IMDS_ALGORITHMS
+        'imds_algorithms': Lmds.IMDS_ALGORITHMS,
+        'dataset_names': Dataset.VALID_NAMES
     }, 200
 
 
@@ -105,21 +65,21 @@ def route_lmds():
         }
 
     elif request.method == 'POST':
-        heuristic = request.json.get('heuristic', DEFAULT_HEURISTIC)
+        heuristic = request.json.get('heuristic', Lmds.HEURISTICS[0])
         distance_metric = request.json.get(
-            'distance_metric', DEFAULT_DISTANCE_METRIC
+            'distance_metric', Lmds.DISTANCE_METRICS[0]
         )
         num_landmarks = request.json.get(
             'num_landmarks', DEFAULT_NUM_LANDMARKS
         )
         seed = request.json.get('seed', DEFAULT_SEED)
+        dataset_name = request.json.get('dataset_name', Dataset.VALID_NAMES[0])
         lmds_id = human_readable_ids.get_new_id().lower().replace(" ", "-")
         lmds = Lmds(
             heuristic=heuristic,
             distance_metric=distance_metric,
             num_landmarks=num_landmarks,
-            dataset=imdb_dataset_small if USE_SMALL else imdb_dataset,
-            use_small=USE_SMALL
+            dataset=Dataset(dataset_name)
         )
         lmds_instances[lmds_id] = lmds
         lmds.select_landmarks(seed=seed)
@@ -198,7 +158,7 @@ def route_lmds_metric(lmds_id: str, metric_name: str):
     if not lmds.landmarks_reduced:
         return {"message": "Landmarks have not been reduced yet"}, 400
     k = request.args.get('k', DEFAULT_K, int)
-    if metric_name not in METRIC_NAMES:
+    if metric_name not in Metrics.METRIC_NAMES:
         return {"message": f"Unknown metric: {metric_name}"}, 400
     return {
         'metric': lmds.compute_metrics(k)[metric_name],

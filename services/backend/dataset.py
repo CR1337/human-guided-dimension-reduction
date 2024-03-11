@@ -72,6 +72,14 @@ class Dataset:
     def labels(self) -> List[str]:
         return self._metadata['labels']
 
+    def neighbors(self, distance_metric: str) -> CachedNeighbors:
+        if distance_metric == 'cosine':
+            return self.cosine_neighbors
+        elif distance_metric == 'euclidean':
+            return self.euclidean_neighbors
+        else:
+            raise ValueError(f"Invalid distance metric: {distance_metric}")
+
     def __init__(self, name: str, no_neighbors: bool = False):
         if name not in self.VALID_NAMES:
             raise ValueError(f"Invalid dataset name: {name}")
@@ -101,10 +109,10 @@ class Dataset:
             self._dataframe = pickle.load(file)
         if not self._no_neighbors:
             self._cosine_neighbors = CachedNeighbors(
-                self._cosine_neighbor_path
+                self._cosine_neighbors_path
             )
             self._euclidean_neighbors = CachedNeighbors(
-                self._euclidean_neighbor_path
+                self._euclidean_neighbors_path
             )
         with open(self._metadata_path, 'r') as file:
             self._metadata = json.load(file)
