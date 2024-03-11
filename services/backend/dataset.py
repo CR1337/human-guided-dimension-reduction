@@ -10,7 +10,9 @@ from neighbors import CachedNeighbors
 
 class Dataset:
 
-    VALID_NAMES: List[str] = ["imdb_small", "imdb", "emotion"]
+    VALID_NAMES: List[str] = [
+        "imdb_small", "imdb", "emotion", "glue_mnli_small"
+    ]
 
     DOCKER_PATH: str = "/server/data"
     LOCAL_PATH: str = "./volumes/data"
@@ -116,3 +118,8 @@ class Dataset:
             )
         with open(self._metadata_path, 'r') as file:
             self._metadata = json.load(file)
+
+
+if __name__ == "__main__":
+    ds = Dataset("emotion")
+    print(ds.dataframe.head())
