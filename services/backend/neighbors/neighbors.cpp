@@ -49,13 +49,6 @@ bool computeNeighbors2D(
     DistanceIndexPair *distanceIndexPairs = (DistanceIndexPair*)(positions + datapointAmount);
     Index *ranks = (Index*)(distanceIndexPairs + datapointAmount * datapointAmount);
 
-    std::cout << "2 D:" << std::endl;
-    std::cout << std::endl;
-    std::cout << "size of  positions: " << (uint8_t*)distanceIndexPairs - (uint8_t*)positions << std::endl;
-    std::cout << "size of  distanceIndexPairs: " << (uint8_t*)ranks - (uint8_t*)distanceIndexPairs << std::endl;
-    std::cout << "size of  ranks: " << (uint8_t*)(ranks + datapointAmount * datapointAmount) - (uint8_t*)ranks << std::endl;
-    std::cout << std::endl;
-
     switch (distanceMetric) {
         case EUCLIDEAN_DISTANCE_METRIC:
             findEuclideanNeighbors2D(

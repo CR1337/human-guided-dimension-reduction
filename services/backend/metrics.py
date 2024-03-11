@@ -9,8 +9,17 @@ from neighbors import Neighbors, ComputedNeighbors, CachedNeighbors
 # and their implementation in: https://github.com/mespadoto/proj-quant-eval/blob/master/code/01_data_collection/metrics.py
 
 class Metrics:
-    def __init__(self, distance_metric: str, use_small: bool) -> None:
-        self.hd_neighbors = CachedNeighbors.all_neighbors_768d(distance_metric=distance_metric, use_small=use_small)
+
+    METRIC_NAMES: List[str] = [
+        "trustworthiness",
+        "continuity",
+        "neighborhood_hit",
+        "average_local_error",
+        "normalized_stress"
+    ]
+
+    def __init__(self, distance_metric: str, neighbors: CachedNeighbors) -> None:
+        self.hd_neighbors = neighbors
         self.distance_metric = distance_metric
         self.ld_neighbors = None
         self.data = None

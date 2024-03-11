@@ -4,24 +4,25 @@ import itertools
 from random import Random
 from sklearn.metrics.pairwise import euclidean_distances, cosine_distances
 from typing import Any, Callable, Dict, List, Tuple
-from functools import cached_property
 
 from metrics import Metrics
-from neighbors import CachedNeighbors
+from dataset import Dataset
 from inference import Predictor
 
 
 def balanced_heuristic(
-    dataset: pd.DataFrame, num_landmarks: int, seed: int
+    dataset: Dataset, num_landmarks: int, seed: int
 ) -> pd.DataFrame:
-    df = dataset.sample(frac=1, random_state=seed)
+    df = dataset.dataframe.sample(frac=1, random_state=seed)
     label_dfs = [df[df["label"] == label] for label in df["label"].unique()]
     Random(seed).shuffle(label_dfs)
 
     return pd.concat(
         [
             label_df.iloc[i % num_landmarks].to_frame().T
-            for i, label_df in zip(range(num_landmarks), itertools.cycle(label_dfs))
+            for i, label_df in zip(
+                range(num_landmarks), itertools.cycle(label_dfs)
+            )
         ]
     )
 
@@ -59,25 +60,18 @@ class Lmds:
         heuristic: str,
         distance_metric: str,
         num_landmarks: int,
-        dataset: pd.DataFrame,
+        dataset: Dataset,
         dimension: int = 2,
-        use_small: bool = True,
-        debug: bool = False,
         create_dataset: bool = False,
         model_path: str = "/server/checkpoints/best",
     ):
-        if debug:
-            CachedNeighbors.ALL_NEIGHBORS_768D_FILENAME = (
-                "./volumes/data/imdb_{distance_metric}_neighbors_small.bin"
-            )
-
         self._heuristic = heuristic
         if heuristic == "random":
-            self._heuristic_func = lambda dataset, num_landmarks, seed: dataset.sample(
+            self._heuristic_func = lambda dataset, num_landmarks, seed: dataset.dataframe.sample(
                 n=num_landmarks, random_state=seed
             )
         elif heuristic == "first":
-            self._heuristic_func = lambda dataset, num_landmarks, _: dataset.head(
+            self._heuristic_func = lambda dataset, num_landmarks, _: dataset.dataframe.head(
                 num_landmarks
             )
         elif heuristic == "balanced":
@@ -110,7 +104,9 @@ class Lmds:
         self.model_path = model_path
 
         if not create_dataset:
-            self._metrics = Metrics(distance_metric, use_small)
+            self._metrics = Metrics(
+                distance_metric, dataset.neighbors(distance_metric)
+            )
 
     @property
     def distance_metric(self) -> str:
@@ -171,7 +167,9 @@ class Lmds:
         return self._metrics.calculate_all_metrics(self.all_points, k)
 
     def select_landmarks(self, seed: int = 42):
-        self._landmarks = self._heuristic_func(self._dataset, self._num_landmarks, seed)
+        self._landmarks = self._heuristic_func(
+            self._dataset, self._num_landmarks, seed
+        )
 
     def reduce_landmarks(self):
         if not self.landmarks_selected:
@@ -250,7 +248,7 @@ class Lmds:
             )
 
         # We first need to get the embeddings of the other points
-        other_points = self._dataset[~self._dataset.index.isin(self._landmarks.index)]
+        other_points = self._dataset.dataframe[~self._dataset.dataframe.index.isin(self._landmarks.index)]
         other_embeddings = np.vstack(other_points["embeddings"].apply(np.array))
 
         # We compute for each point the distance to the landmarks
@@ -325,6 +323,7 @@ class Lmds:
             "landmarks_selected": self.landmarks_selected,
             "landmarks_reduced": self.landmarks_reduced,
             "points_calculated": self.points_calculated,
+            "labels": self._dataset.labels
         }
 
 
@@ -360,8 +359,7 @@ if __name__ == "__main__":
         heuristic="random",
         distance_metric="euclidean",
         num_landmarks=10,
-        dataset=dataset,
-        debug=True,
+        dataset=dataset
     )
 
     lmds.select_landmarks()

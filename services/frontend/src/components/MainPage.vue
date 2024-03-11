@@ -27,6 +27,7 @@
           :coloring="coloring"
           :distance-metric="distanceMetric"
           :metrics="metrics"
+          :labels="labels"
           @hovered-point-index-changed="hoveredPointIndexChanged"
           @selected-point-index-changed="selectedPointIndexChanged"
           @selected-point-moved="selectedPointMoved"
@@ -41,6 +42,12 @@
       <td style="vertical-align:top">
         <b>1. Create a new LMDS instance.</b>
         <div>
+          <label for="datasetName">Dataset: </label>
+          <select v-model="newDatasetName" name="datasetName">
+            <option v-for="datasetName in datasetNames" :value="datasetName">{{ datasetName }}</option>
+          </select>
+          <br>
+
           <label for="heuristic">Landmark selection heuristic: </label>
           <select v-model="newHeuristic" name="heuristic">
             <option v-for="heuristic in heuristics" :value="heuristic">{{ heuristic }}</option>
@@ -169,14 +176,14 @@
 
   <table style="width: 100%;">
     <tr>
-      <th style="text-align: left;"><b>Hovered Point</b><a style="color: #00ff00"> ⬤</a></th>
-      <th style="text-align: left;"><b>Selected Point</b><a style="color: #ff0000"> ⬤</a></th>
+      <th style="text-align: left;"><b>Hovered Point</b><a>&nbsp;</a><a style="color: #808080; background-color: #000000;">⬤</a></th>
+      <th style="text-align: left;"><b>Selected Point</b><a>&nbsp;</a><a style="color: #ffffff; background-color: #000000;">⬤</a></th>
     </tr>
     <tr>
       <td style="width: 50%; vertical-align: top; text-align: left;">
         id: <a v-if="hoveredPointIndex !== null">{{ datapoints[hoveredPointIndex].id }}</a><br>
         position: <a v-if="hoveredPointIndex !== null">{{ datapoints[hoveredPointIndex].position }}</a><br>
-        label: <a v-if="hoveredPointIndex !== null">{{ datapoints[hoveredPointIndex].label }}</a><br>
+        label: <a v-if="hoveredPointIndex !== null">{{ datapoints[hoveredPointIndex].label }} ({{ labels[datapoints[hoveredPointIndex].label] }})</a><br>
         is landmark: <a v-if="hoveredPointIndex !== null">{{ datapoints[hoveredPointIndex].is_landmark }}</a><br>
         average local error: <a v-if="hoveredPointIndex !== null">{{ metrics !== null ? metrics.average_local_error[hoveredPointIndex].toFixed(metricsDecimalPlaces) : "" }}</a><br>
         text: <a v-if="hoveredPointIndex !== null">{{ datapoints[hoveredPointIndex].text }}</a><br>
@@ -184,7 +191,7 @@
       <td style="width: 50%; vertical-align: top; text-align: left;">
         id: <a v-if="selectedPointIndex !== null">{{ datapoints[selectedPointIndex].id }}</a><br>
         position: <a v-if="selectedPointIndex !== null">{{ datapoints[selectedPointIndex].position }}</a><br>
-        label: <a v-if="selectedPointIndex !== null">{{ datapoints[selectedPointIndex].label }}</a><br>
+        label: <a v-if="selectedPointIndex !== null">{{ datapoints[selectedPointIndex].label }} ({{ labels[datapoints[selectedPointIndex].label] }})</a><br>
         is landmark: <a v-if="selectedPointIndex !== null">{{ datapoints[selectedPointIndex].is_landmark }}</a><br>
         average local error: <a v-if="selectedPointIndex !== null">{{ metrics !== null ? metrics.average_local_error[selectedPointIndex].toFixed(metricsDecimalPlaces) : "" }}</a><br>
         text: <a v-if="selectedPointIndex !== null">{{ datapoints[selectedPointIndex].text }}</a><br>
@@ -214,6 +221,8 @@ export default {
               this.newNumLandmarks = this.minLandmarkAmount;
               this.imdsAlgorithms = data.imds_algorithms;
               this.selectedImdsAlgorithm = this.imdsAlgorithms[0];
+              this.datasetNames = data.dataset_names;
+              this.newDatasetName = this.datasetNames[0];
           }).catch((error) => {
               console.error(error);
           });
@@ -225,7 +234,9 @@ export default {
           minLandmarkAmount: 10,  // default value, will be updated by server
           maxLandmarkAmount: 100,  // default value, will be updated by server
           imdsAlgorithms: [],
+          datasetNames: [],
 
+          newDatasetName: null,
           newHeuristic: null,
           newDistanceMetric: null,
           newNumLandmarks: 10,
@@ -266,7 +277,8 @@ export default {
                 heuristic: this.newHeuristic,
                 distance_metric: this.newDistanceMetric,
                 num_landmarks: parseInt(this.newNumLandmarks, 10),
-                seed: parseInt(this.seed, 10)
+                seed: parseInt(this.seed, 10),
+                dataset_name: this.newDatasetName
             })
         }).then((response) => {
             return response.json();
@@ -475,6 +487,11 @@ export default {
 
         landmarksPastable() {
           return this.copiedLandmarks[this.selectedLmdsId] !== undefined;
+        },
+
+        labels() {
+          if (this.selectedLmds == null) return [];
+          return this.selectedLmds.labels;
         }
     }
 }
