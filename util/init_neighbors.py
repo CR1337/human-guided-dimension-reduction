@@ -29,7 +29,7 @@ if not os.path.exists(NEIGHBORS_EXECUTABLE_PATH):
         raise RuntimeError("Failed to compile neighbors executable!")
 
 for dataset in DATASETS:
-    print(f"Processing dataset: {dataset.name}")
+    print(f"\n\nProcessing dataset: {dataset.name}")
     print("Computing euclidean neighbors...")
     euclidean_neighbors = ComputedNeighbors(
         distance_metric="euclidean",
