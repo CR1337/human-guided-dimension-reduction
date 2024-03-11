@@ -1,61 +1,110 @@
+from __future__ import annotations
 import os
+import json
 import pickle
 import pandas as pd
-from typing import List
+from typing import Any, List, Dict
 
 from neighbors import CachedNeighbors
 
 
 class Dataset:
 
-    VALID_NAMES: List[str] = ["imdb_small", "imdb", "emotions"]
+    VALID_NAMES: List[str] = ["imdb_small", "imdb", "emotion"]
 
     DOCKER_PATH: str = "/server/data"
     LOCAL_PATH: str = "./volumes/data"
 
     _name: str
-    _inside_docker: bool
+    _no_neighbors: bool
+
+    _dataset_path: str
+    _cosine_neighbors_path: str
+    _euclidean_neighbors_path: str
+    _metadata_path: str
 
     _dataframe: pd.DataFrame
     _cosine_neighbors: CachedNeighbors
     _euclidean_neighbors: CachedNeighbors
+    _metadata: Dict[str, Any]
+
+    @classmethod
+    def all(cls, no_neighbors: bool = True) -> List[Dataset]:
+        return [cls(name, no_neighbors) for name in cls.VALID_NAMES]
 
     @property
     def name(self) -> str:
         return self._name
 
     @property
+    def dataset_path(self) -> str:
+        return self._dataset_path
+
+    @property
+    def cosine_neighbors_path(self) -> str:
+        return self._cosine_neighbors_path
+
+    @property
+    def euclidean_neighbors_path(self) -> str:
+        return self._euclidean_neighbors_path
+
+    @property
+    def metadata_path(self) -> str:
+        return self._metadata_path
+
+    @property
     def dataframe(self) -> pd.DataFrame:
         return self._dataframe
 
     @property
-    def cosine_neighbors(self) -> CachedNeighbors:
+    def cosine_neighbors(self) -> CachedNeighbors | None:
+        if self._no_neighbors:
+            return None
         return self._cosine_neighbors
 
     @property
-    def euclidean_neighbors(self) -> CachedNeighbors:
+    def euclidean_neighbors(self) -> CachedNeighbors | None:
+        if self._no_neighbors:
+            return None
         return self._euclidean_neighbors
 
-    def __init__(self, name: str):
+    @property
+    def labels(self) -> List[str]:
+        return self._metadata['labels']
+
+    def __init__(self, name: str, no_neighbors: bool = False):
         if name not in self.VALID_NAMES:
             raise ValueError(f"Invalid dataset name: {name}")
         self._name = name
+        self._no_neighbors = no_neighbors
 
         inside_docker = bool(os.environ.get('INSIDE_DOCKER', False))
 
-        dataset_path = os.path.join(
+        self._dataset_path = os.path.join(
             self.DOCKER_PATH if inside_docker else self.LOCAL_PATH,
             f"{self._name}_embeddings.pkl"
         )
-        cosine_neighbor_path = os.path.join(
+        self._cosine_neighbors_path = os.path.join(
             self.DOCKER_PATH if inside_docker else self.LOCAL_PATH,
             f"{self._name}_cosine_neighbors.bin"
         )
-        euclidean_neighbor_path = os.path.join(
+        self._euclidean_neighbors_path = os.path.join(
             self.DOCKER_PATH if inside_docker else self.LOCAL_PATH,
             f"{self._name}_euclidean_neighbors.bin"
         )
+        self._metadata_path = os.path.join(
+            self.DOCKER_PATH if inside_docker else self.LOCAL_PATH,
+            f"{self._name}_meta.json"
+        )
 
-        self._dataframe = pickle.load(dataset_path)
-        self._cosine_neighbors = CachedNeighbors(cosine_neighbor_path)
-        self._euclidean_neighbors = CachedNeighbors(euclidean_neighbor_path)
+        with open(self._dataset_path, 'rb') as file:
+            self._dataframe = pickle.load(file)
+        if not self._no_neighbors:
+            self._cosine_neighbors = CachedNeighbors(
+                self._cosine_neighbor_path
+            )
+            self._euclidean_neighbors = CachedNeighbors(
+                self._euclidean_neighbor_path
+            )
+        with open(self._metadata_path, 'r') as file:
+            self._metadata = json.load(file)
