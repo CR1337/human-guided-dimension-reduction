@@ -31,11 +31,10 @@
           @hovered-point-index-changed="hoveredPointIndexChanged"
           @selected-point-index-changed="selectedPointIndexChanged"
           @selected-point-moved="selectedPointMoved"
-          @framerate-changed="framerateChanged"
         />
         <div>
-          {{ framerate }} fps
-          <b v-if="busy" style="color: #ff0000;">    busy...</b>
+          <b style="color: white;">&nbsp;</b>
+          <b v-if="busy" style="color: #ff0000;">    computing datapoints...</b>
           <b v-if="calculatingMetrics" style="color: #ff0000;">    calculating metrics...</b>
         </div>
       </td>
@@ -101,9 +100,9 @@
           <label for="imds">Inverse MDS algorithm: </label>
           <select v-model="selectedImdsAlgorithm" name="imds" :disabled="selectedLmds == null">
             <option v-for="algorithm in imdsAlgorithms" :value="algorithm">{{ algorithm }}</option>
-          </select><br>
+          </select>
 
-          <button @click="calculate()" :disabled="selectedLmdsId == null || busy">Calculate</button>
+          <button @click="updateLandmarks()" :disabled="selectedLmdsId == null || busy">Calculate</button>
         </div>
         <br>
 
@@ -111,7 +110,7 @@
         <div>
           <label for="k">k: </label>
           <input
-            v-model="k" type="number" name="k" min="1" max="1000" step="1" @change="kChanged"
+            v-model="k" type="number" name="k" min="1" max="1000" step="1" @change="getMetrics()"
             :disabled="selectedLmds == null || !selectedLmds.points_calculated || metrics == null"
           >
           <button @click="clearHistory()" :disabled="prevMetrics.length == 0">Clear History</button>
@@ -162,7 +161,7 @@
         <div>
           <label for="coloring">Coloring: </label>
           <select
-            v-model="coloring" name="coloring" @change="rerender()"
+            v-model="coloring" name="coloring" @change="updateCanvas()"
             :disabled="selectedLmds == null || !selectedLmds.points_calculated || metrics == null"
           >
             <option value="label">label</option>
@@ -176,8 +175,8 @@
 
   <table style="width: 100%;">
     <tr>
-      <th style="text-align: left;"><b>Hovered Point</b><a>&nbsp;</a><a style="color: #808080; background-color: #000000;">⬤</a></th>
-      <th style="text-align: left;"><b>Selected Point</b><a>&nbsp;</a><a style="color: #ffffff; background-color: #000000;">⬤</a></th>
+      <th style="text-align: left;"><b>Hovered Point</b><a>&nbsp;</a><a style="color: #808080; background-color: #000000;">&nbsp;⬤&nbsp;</a></th>
+      <th style="text-align: left;"><b>Selected Point</b><a>&nbsp;</a><a style="color: #ffffff; background-color: #000000;">&nbsp;⬤&nbsp;</a></th>
     </tr>
     <tr>
       <td style="width: 50%; vertical-align: top; text-align: left;">
@@ -206,68 +205,101 @@ import { nextTick } from 'vue';
 
 export default {
     name: "MainPage",
+
     components: { Canvas },
+
     mounted() {
         fetch('http://' + this.host + ':5000/constants', {cache: "no-store"})
           .then((response) => {
               return response.json();
           }).then((data) => {
-              this.heuristics = data.heuristics;
-              this.newHeuristic = this.heuristics[0];
-              this.distanceMetrics = data.distance_metrics;
-              this.newDistanceMetric = this.distanceMetrics[0];
-              this.minLandmarkAmount = data.min_landmark_amount;
-              this.maxLandmarkAmount = data.max_landmark_amount;
-              this.newNumLandmarks = this.minLandmarkAmount;
-              this.imdsAlgorithms = data.imds_algorithms;
-              this.selectedImdsAlgorithm = this.imdsAlgorithms[0];
-              this.datasetNames = data.dataset_names;
-              this.newDatasetName = this.datasetNames[0];
+            this.datasetNames = data.dataset_names;
+            this.newDatasetName = this.datasetNames[0];
+            this.heuristics = data.heuristics;
+            this.newHeuristic = this.heuristics[0];
+            this.minLandmarkAmount = data.min_landmark_amount;
+            this.maxLandmarkAmount = data.max_landmark_amount;
+            this.newNumLandmarks = this.minLandmarkAmount;
+            this.distanceMetrics = data.distance_metrics;
+            this.newDistanceMetric = this.distanceMetrics[0];
+
+            this.imdsAlgorithms = data.imds_algorithms;
+            this.selectedImdsAlgorithm = this.imdsAlgorithms[0];
           }).catch((error) => {
               console.error(error);
           });
     },
+
     data() {
         return {
+          // #region INSTANCE CREATION
+
+          datasetNames: [],
+          newDatasetName: null,
+
           heuristics: [],
+          newHeuristic: null,
+
           distanceMetrics: [],
+          newDistanceMetric: null,
+
           minLandmarkAmount: 10,  // default value, will be updated by server
           maxLandmarkAmount: 100,  // default value, will be updated by server
-          imdsAlgorithms: [],
-          datasetNames: [],
-
-          newDatasetName: null,
-          newHeuristic: null,
-          newDistanceMetric: null,
           newNumLandmarks: 10,
+
           seed: 42,
 
-          datapoints: [],
-          copiedLandmarks: {},
-          initialLandmarks: {},
+          // #endregion
+
+          // #region INSTANCE SELECTION
 
           lmdsIds: [],
           selectedLmdsId: null,
           selectedLmds: null,
-          metrics: null,
-          prevMetrics: [],
-          prevMetricsMaxLength: 4,
+
+          datapoints: [],
+
+          // #endregion
+
+          // #region LANDMARK MOVEMENT
 
           hoveredPointIndex: null,
           selectedPointIndex: null,
 
-          k: 7,
-          selectedImdsAlgorithm: null,
-          coloring: 'label',
+          copiedLandmarks: {},
+          initialLandmarks: {},
 
-          busy: false,
+          // #endregion
+
+          // #region DIMENSIONALITY REDUCTION
+
+          imdsAlgorithms: [],
+          selectedImdsAlgorithm: null,
+          computingDatapoints: false,
+
+          // #endregion
+
+          // #region METRICS
+
+          metrics: null,
+          prevMetrics: [],
+          k: 7,
+          coloring: 'label',
           calculatingMetrics: false,
+
+          // constants:
+          prevMetricsMaxLength: 4,
           metricsDecimalPlaces: 3
+
+          // #endregion
         };
     },
+
     methods: {
+      // #region INSTANCE CREATION
+
       newLmds() {
-        this.busy = true;
+        this.computingDatapoints = true;
         fetch('http://' + this.host + ':5000/lmds', {
             method: 'POST',
             headers: {
@@ -290,28 +322,35 @@ export default {
             this.getLandmarks();
         }).catch((error) => {
             console.error(error);
-            this.busy = false;
+            this.computingDatapoints = false;
         });
       },
 
-      getLandmarks() {
-        this.busy = true;
-        fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId + '/landmarks', {cache: "no-store"})
+      // #endregion
+
+      // #region INSTANCE SELECTION
+
+      lmdsSelectionChanged() {
+        this.computingDatapoints = true;
+        fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId, {cache: "no-store"})
             .then((response) => {
                 return response.json();
             }).then((data) => {
-                this.datapoints = data.landmarks;
-                this.initialLandmarks[this.selectedLmdsId] = data.landmarks.map((landmark) => ({...landmark}));
-                this.updateCanvas();
+                this.selectedLmds = data.lmds;
+                if (this.selectedLmds.points_calculated) {
+                    this.getDatapoints();
+                    this.getMetrics();
+                } else {
+                    this.getLandmarks();
+                }
             }).catch((error) => {
                 console.error(error);
-            }).finally(() => {
-                this.busy = false;
+                this.computingDatapoints = false;
             });
       },
 
       deleteLmds() {
-        this.busy = true;
+        this.computingDatapoints = true;
         fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId, {
             method: 'DELETE',
         }).then((response) => {
@@ -328,33 +367,33 @@ export default {
         }).catch((error) => {
             console.error(error);
         }).finally(() => {
-            this.busy = false;
+            this.computingDatapoints = false;
         });
       },
 
-      calculate() {
-        this.updateLandmarks();
+      // #endregion
+
+      // #region LANDMARKS
+
+      getLandmarks() {
+        this.computingDatapoints = true;
+        fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId + '/landmarks', {cache: "no-store"})
+            .then((response) => {
+                return response.json();
+            }).then((data) => {
+                this.datapoints = data.landmarks;
+                this.initialLandmarks[this.selectedLmdsId] = data.landmarks.map((landmark) => ({...landmark}));
+                this.updateCanvas();
+            }).catch((error) => {
+                console.error(error);
+            }).finally(() => {
+                this.computingDatapoints = false;
+            });
       },
 
-      updateLandmarks() {
-        this.busy = true;
-        fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId + '/landmarks', {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                landmarks: this.datapoints.filter((landmark) => landmark.is_landmark)
-            })
-        }).then((response) => {
-            return response.json();
-        }).then((data) => {
-            this.getDatapoints();
-        }).catch((error) => {
-            console.error(error);
-            this.busy = false;
-        });
-      },
+      // #endregion
+
+      // #region LANDMARK MOVEMENT
 
       copyLandmarks() {
         this.copiedLandmarks[this.selectedLmdsId] = this.datapoints.filter((landmark) => landmark.is_landmark).map((landmark) => ({...landmark}));
@@ -375,11 +414,49 @@ export default {
           datapoints.splice(index, 1, landmark);
         }
         this.datapoints = datapoints.map((datapoint) => ({...datapoint}));
-        this.rerender();
+        this.updateCanvas();
+      },
+
+      hoveredPointIndexChanged(index) {
+        this.hoveredPointIndex = index;
+      },
+
+      selectedPointIndexChanged(index) {
+        this.selectedPointIndex = index;
+      },
+
+      selectedPointMoved(newPosition) {
+        const datapoint = this.datapoints[this.selectedPointIndex];
+        datapoint.position = newPosition;
+        this.datapoints[this.selectedPointIndex] = datapoint;
+      },
+
+      // #endregion
+
+      // #region DIMENSIONALITY REDUCTION
+
+      updateLandmarks() {
+        this.computingDatapoints = true;
+        fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId + '/landmarks', {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                landmarks: this.datapoints.filter((landmark) => landmark.is_landmark)
+            })
+        }).then((response) => {
+            return response.json();
+        }).then((data) => {
+            this.getDatapoints();
+        }).catch((error) => {
+            console.error(error);
+            this.computingDatapoints = false;
+        });
       },
 
       getDatapoints() {
-        this.busy = true;
+        this.computingDatapoints = true;
         fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId + '/datapoints?imds_algorithm=' + this.selectedImdsAlgorithm, {cache: "no-store"})
             .then((response) => {
                 return response.json();
@@ -398,13 +475,13 @@ export default {
             }).catch((error) => {
                 console.error(error);
             }).finally(() => {
-                this.busy = false;
+                this.computingDatapoints = false;
             });
       },
 
-      kChanged() {
-        this.getMetrics();
-      },
+      // #endregion
+
+      // #region METRICS
 
       clearHistory() {
         this.prevMetrics = [];
@@ -431,50 +508,15 @@ export default {
             });
       },
 
+      // #endregion
+
+      // #region UPDATES
+
       updateCanvas() {
         nextTick(() => { this.$refs.canvas.datapointsUpdated(); });
       },
 
-      rerender() {
-        nextTick(() => { this.$refs.canvas.rerender(); });
-      },
-
-      lmdsSelectionChanged() {
-        this.busy = true;
-        fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId, {cache: "no-store"})
-            .then((response) => {
-                return response.json();
-            }).then((data) => {
-                this.selectedLmds = data.lmds;
-                if (this.selectedLmds.points_calculated) {
-                    this.getDatapoints();
-                    this.getMetrics();
-                } else {
-                    this.getLandmarks();
-                }
-            }).catch((error) => {
-                console.error(error);
-                this.busy = false;
-            });
-      },
-
-      hoveredPointIndexChanged(index) {
-        this.hoveredPointIndex = index;
-      },
-
-      selectedPointIndexChanged(index) {
-        this.selectedPointIndex = index;
-      },
-
-      selectedPointMoved(newPosition) {
-        const datapoint = this.datapoints[this.selectedPointIndex];
-        datapoint.position = newPosition;
-        this.datapoints[this.selectedPointIndex] = datapoint;
-      },
-
-      framerateChanged(framerate) {
-        this.framerate = framerate;
-      }
+      // #endregion
     },
     computed: {
         host() { return window.location.origin.split("/")[2].split(":")[0]; },
