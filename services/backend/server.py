@@ -3,6 +3,7 @@ from flask_cors import CORS
 from lmds import Lmds
 from dataset import Dataset
 from metrics import Metrics
+from imds import Imds
 from typing import Dict, List, Any
 import human_readable_ids
 import pandas as pd
@@ -49,7 +50,7 @@ def route_constants():
         'metrics': Metrics.METRIC_NAMES,
         'min_landmark_amount': Lmds.LANDMARK_AMOUNT_RANGE[0],
         'max_landmark_amount': Lmds.LANDMARK_AMOUNT_RANGE[1],
-        'imds_algorithms': Lmds.IMDS_ALGORITHMS,
+        'imds_algorithms': Imds.VALID_NAMES,
         'dataset_names': Dataset.VALID_NAMES
     }, 200
 
@@ -127,7 +128,7 @@ def route_datapoints(lmds_id: str):
     if not lmds.landmarks_reduced:
         return {"message": "Landmarks have not been reduced yet"}, 400
     imds_algorithm = request.args.get(
-        'imds_algorithm', Lmds.IMDS_ALGORITHMS[0]
+        'imds_algorithm', Imds.VALID_NAMES[0]
     )
     lmds.calculate(imds_algorithm)
     return {

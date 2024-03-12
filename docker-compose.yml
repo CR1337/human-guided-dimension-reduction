@@ -8,6 +8,7 @@ services:
       - 5000:5000
     volumes:
       - ./volumes/data:/server/data
+      - ./volumes/models:/server/models
 
   frontend:
     build: services/frontend
