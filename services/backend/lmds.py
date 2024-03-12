@@ -8,6 +8,7 @@ from typing import Any, Callable, Dict, List, Tuple
 from metrics import Metrics
 from dataset import Dataset
 from inference import Predictor
+from imds import Imds
 
 
 def balanced_heuristic(
@@ -31,7 +32,6 @@ class Lmds:
     HEURISTICS: List[str] = ["balanced", "random", "first"]
     DISTANCE_METRICS: List[str] = ["euclidean", "cosine"]
     LANDMARK_AMOUNT_RANGE: Tuple[int, int] = (10, 30)
-    IMDS_ALGORITHMS: List[str] = ["none", "model", "trivial"]
 
     _heuristic: str
     _distance_metric: str
@@ -216,21 +216,9 @@ class Lmds:
         low_dimensional_distances = self._distance_metric_func(
             self.low_landmark_embeddings, self.low_landmark_embeddings
         )
-        if imds_algorithm == "trivial":
-            # Just use the low dimensional distances
-            # as new high dimensional delta_n
-            self._delta_n = low_dimensional_distances**2
-        elif imds_algorithm == "model":
-            # Use the model to predict the high dimensional distances
-            # and use them as new high dimensional delta_n
-            predictor = Predictor(model_path=self.model_path)
-            # Since our model is trained on the normal distance matrix we need to square the result
-            self._delta_n = predictor.inference(low_dimensional_distances) ** 2
-        elif imds_algorithm == "none":
-            # Do not change the high dimensional delta_n
-            self._delta_n = self._delta_n_old
-        else:
-            raise RuntimeError(f"Unknown imds algorithm: {imds_algorithm}")
+        self._delta_n = Imds(
+            imds_algorithm, self._distance_metric
+        ).inference(low_dimensional_distances, self._delta_n_old)
 
         # recompute eigenvalues and eigenvectors
         self._eigenvalues, self._eigenvectors = self._compute_eigenstuff()

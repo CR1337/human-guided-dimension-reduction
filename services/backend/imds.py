@@ -1,0 +1,57 @@
+import os
+import numpy as np
+from typing import Any, List
+
+from inference import Predictor
+
+
+class Imds:
+
+    NEURAL_NETWORK_NAMES: List[str] = ["nn_imdb", "nn_emotion", "nn_both"]
+    OTHER_NAMES: List[str] = ["none", "trivial"]
+    VALID_NAMES: List[str] = OTHER_NAMES + NEURAL_NETWORK_NAMES
+
+    DOCKER_PATH: str = "/server/models"
+    LOCAL_PATH: str = "./volumes/models"
+
+    _name: str
+    _distance_metric: str
+    _is_neural_network: bool
+
+    _model_path: str
+
+    def __init__(self, name: str, distance_metric: str):
+        self._name = name
+        self._distance_metric = distance_metric
+        self._is_neural_network = name in self.NEURAL_NETWORK_NAMES
+        if self._is_neural_network:
+            self._name += f"_{distance_metric}"
+
+            inside_docker = bool(os.environ.get('INSIDE_DOCKER', False))
+
+            self._model_path = os.path.join(
+                self.DOCKER_PATH if inside_docker else self.LOCAL_PATH,
+                self._name
+            )
+
+    def inference(
+        self, distance_matrix: Any, old_delta_n: Any
+    ) -> np.ndarray:
+        if self._name in self.OTHER_NAMES:
+            return self._other_inference(distance_matrix, old_delta_n)
+        else:
+            return self._neural_network_inference(distance_matrix)
+
+    def _neural_network_inference(self, distance_matrix: Any) -> np.ndarray:
+        predictor = Predictor(model_path=self._model_path)
+        return predictor.inference(distance_matrix) ** 2
+
+    def _other_inference(
+        self, distance_matrix: Any, old_delta_n: Any
+    ) -> np.ndarray:
+        if self._name == "none":
+            return old_delta_n
+        elif self._name == "trivial":
+            return distance_matrix ** 2
+        else:
+            raise ValueError(f"Invalid iMds Algorithm: {self._name}")
