@@ -5,7 +5,7 @@ from typing import Any, List
 from inference import Predictor
 
 
-class Imds:
+class InverseDimensionaltyReduction:
 
     NEURAL_NETWORK_NAMES: List[str] = ["nn_imdb", "nn_emotion", "nn_both"]
     OTHER_NAMES: List[str] = ["none", "trivial"]
@@ -54,4 +54,4 @@ class Imds:
         elif self._name == "trivial":
             return distance_matrix ** 2
         else:
-            raise ValueError(f"Invalid iMds Algorithm: {self._name}")
+            raise ValueError(f"Invalid iDR Algorithm: {self._name}")

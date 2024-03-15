@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, List, Tuple
 
 from metrics import Metrics
 from dataset import Dataset
-from imds import Imds
+from services.backend.idr import InverseDimensionaltyReduction
 
 
 def balanced_heuristic(
@@ -213,16 +213,16 @@ class DimensionalityReduction:
 
         self._landmarks_reduced = True
 
-    def calculate(self, imds_algorithm: str):
+    def calculate(self, idr_algorithm: str):
         if not self.landmarks_reduced:
             raise RuntimeError("Landmarks not reduced!")
 
-        # Compute new delta_n using one of the imds algorithms
+        # Compute new delta_n using one of the inverse dr algorithms
         low_dimensional_distances = self._distance_metric_func(
             self.low_landmark_embeddings, self.low_landmark_embeddings
         )
-        self._delta_n = Imds(
-            imds_algorithm, self._distance_metric
+        self._delta_n = InverseDimensionaltyReduction(
+            idr_algorithm, self._distance_metric
         ).inference(low_dimensional_distances, self._delta_n_old)
 
         # recompute eigenvalues and eigenvectors

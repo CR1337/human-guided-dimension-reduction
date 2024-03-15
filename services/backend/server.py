@@ -2,7 +2,7 @@ from flask import Flask, request
 from flask_cors import CORS
 from services.backend.dr import DimensionalityReduction
 from dataset import Dataset
-from imds import Imds
+from services.backend.idr import InverseDimensionaltyReduction
 from typing import Dict, List, Any
 import human_readable_ids
 import pandas as pd
@@ -48,7 +48,7 @@ def route_constants():
         'distance_metrics': DimensionalityReduction.DISTANCE_METRICS,
         'min_landmark_amount': DimensionalityReduction.LANDMARK_AMOUNT_RANGE[0],
         'max_landmark_amount': DimensionalityReduction.LANDMARK_AMOUNT_RANGE[1],
-        'imds_algorithms': Imds.VALID_NAMES,
+        'imds_algorithms': InverseDimensionaltyReduction.VALID_NAMES,
         'dataset_names': Dataset.VALID_NAMES
     }, 200
 
@@ -128,7 +128,7 @@ def route_datapoints(lmds_id: str):
         return {"message": "Landmarks have not been reduced yet"}, 400
 
     imds_algorithm = request.args.get(
-        'imds_algorithm', Imds.VALID_NAMES[0]
+        'imds_algorithm', InverseDimensionaltyReduction.VALID_NAMES[0]
     )
     lmds.calculate(imds_algorithm)
     return {
