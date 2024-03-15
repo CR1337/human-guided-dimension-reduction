@@ -8,7 +8,7 @@ from os import path
 sys.path.append(
     path.dirname(path.dirname(path.dirname(path.abspath(__file__)))) + "/services/backend"
 )
-from lmds import Lmds  # noqa: E402
+from dr import DimensionalityReduction  # noqa: E402
 
 SEEDS = [42, 642465, 87575675]
 LANDMARK_NUMS = [10, 20, 30]
@@ -31,7 +31,7 @@ def main():
     with open("./volumes/data/imdb_embeddings_small.pkl", "rb") as file:
         dataset = pickle.load(file)
 
-    lmds = Lmds(
+    dr = DimensionalityReduction(
         heuristic="random",
         distance_metric="euclidean",
         num_landmarks=args.landmark_count,
@@ -41,11 +41,11 @@ def main():
     )
     metrics = []
     for seed in SEEDS:
-        lmds.select_landmarks(seed=seed)
-        lmds.reduce_landmarks()
-        lmds.low_landmark_embeddings = move_landmarks(lmds.landmarks["label"])
-        lmds.calculate(imds_algorithm=args.imds_algorithm, do_pca=False)
-        metrics.append(lmds.compute_metrics(7))
+        dr.select_landmarks(seed=seed)
+        dr.reduce_landmarks()
+        dr.low_landmark_embeddings = move_landmarks(dr.landmarks["label"])
+        dr.calculate(imds_algorithm=args.imds_algorithm, do_pca=False)
+        metrics.append(dr.compute_metrics(7))
 
     print(f"Mean metrics for {args.imds_algorithm} with {args.landmark_count} landmarks")
     print(np.mean(metrics, axis=0))

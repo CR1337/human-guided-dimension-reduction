@@ -27,7 +27,7 @@ def balanced_heuristic(
     )
 
 
-class Lmds:
+class DimensionalityReduction:
     HEURISTICS: List[str] = ["balanced", "random", "first"]
     DISTANCE_METRICS: List[str] = ["euclidean", "cosine"]
     LANDMARK_AMOUNT_RANGE: Tuple[int, int] = (10, 30)

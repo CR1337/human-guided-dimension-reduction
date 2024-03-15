@@ -1,6 +1,6 @@
 from flask import Flask, request
 from flask_cors import CORS
-from lmds import Lmds
+from services.backend.dr import DimensionalityReduction
 from dataset import Dataset
 from imds import Imds
 from typing import Dict, List, Any
@@ -16,7 +16,7 @@ app = Flask(__name__)
 CORS(app)
 
 
-lmds_instances: Dict[str, Lmds] = {}
+lmds_instances: Dict[str, DimensionalityReduction] = {}
 
 
 def dataframe_to_json(dataframe: pd.DataFrame) -> List[Dict[str, Any]]:
@@ -44,10 +44,10 @@ def route_index():
 @app.route('/constants', methods=['GET'])
 def route_constants():
     return {
-        'heuristics': Lmds.HEURISTICS,
-        'distance_metrics': Lmds.DISTANCE_METRICS,
-        'min_landmark_amount': Lmds.LANDMARK_AMOUNT_RANGE[0],
-        'max_landmark_amount': Lmds.LANDMARK_AMOUNT_RANGE[1],
+        'heuristics': DimensionalityReduction.HEURISTICS,
+        'distance_metrics': DimensionalityReduction.DISTANCE_METRICS,
+        'min_landmark_amount': DimensionalityReduction.LANDMARK_AMOUNT_RANGE[0],
+        'max_landmark_amount': DimensionalityReduction.LANDMARK_AMOUNT_RANGE[1],
         'imds_algorithms': Imds.VALID_NAMES,
         'dataset_names': Dataset.VALID_NAMES
     }, 200
@@ -64,9 +64,9 @@ def route_lmds():
         }
 
     elif request.method == 'POST':
-        heuristic = request.json.get('heuristic', Lmds.HEURISTICS[0])
+        heuristic = request.json.get('heuristic', DimensionalityReduction.HEURISTICS[0])
         distance_metric = request.json.get(
-            'distance_metric', Lmds.DISTANCE_METRICS[0]
+            'distance_metric', DimensionalityReduction.DISTANCE_METRICS[0]
         )
         num_landmarks = request.json.get(
             'num_landmarks', DEFAULT_NUM_LANDMARKS
@@ -74,7 +74,7 @@ def route_lmds():
         seed = request.json.get('seed', DEFAULT_SEED)
         dataset_name = request.json.get('dataset_name', Dataset.VALID_NAMES[0])
         lmds_id = human_readable_ids.get_new_id().lower().replace(" ", "-")
-        lmds = Lmds(
+        lmds = DimensionalityReduction(
             heuristic=heuristic,
             distance_metric=distance_metric,
             num_landmarks=num_landmarks,

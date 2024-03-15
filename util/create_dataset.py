@@ -14,7 +14,7 @@ import pandas as pd
 sys.path.append(
     path.dirname(path.dirname(path.abspath(__file__))) + "/services/backend"
 )
-from lmds import Lmds  # noqa: E402
+from dr import DimensionalityReduction  # noqa: E402
 
 
 def parse_args():
@@ -122,7 +122,7 @@ def main():
 def generate_data(
     num_landmarks: int, dataset: pd.DataFrame, seeds: List[int], distance_metric: str
 ) -> Dict[str, np.ndarray]:
-    lmds = Lmds(
+    dr = DimensionalityReduction(
         heuristic="random",
         distance_metric=distance_metric,
         num_landmarks=num_landmarks,
@@ -131,16 +131,16 @@ def generate_data(
     )
     result = []
     for seed in seeds:
-        lmds.select_landmarks(seed=seed)
-        lmds.reduce_landmarks()
+        dr.select_landmarks(seed=seed)
+        dr.reduce_landmarks()
 
-        original_position = np.vstack(lmds.landmarks["embeddings"].apply(np.array))
-        projected_position = np.vstack(lmds.landmarks["position"].apply(np.array))
+        original_position = np.vstack(dr.landmarks["embeddings"].apply(np.array))
+        projected_position = np.vstack(dr.landmarks["position"].apply(np.array))
 
-        original_distances = lmds.distances(
+        original_distances = dr.distances(
             original_position, original_position
         ).tolist()
-        projected_distances = lmds.distances(
+        projected_distances = dr.distances(
             projected_position, projected_position
         ).tolist()
 
