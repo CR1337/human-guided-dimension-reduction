@@ -54,6 +54,8 @@ class DimensionalityReduction:
 
     _metrics: Metrics
 
+    _last_idr_algorithm: str | None
+
     def __init__(
         self,
         heuristic: str,
@@ -111,6 +113,8 @@ class DimensionalityReduction:
                 distance_metric, dataset.neighbors(distance_metric)
             )
 
+        self._last_idr_algorithm = None
+
     @property
     def distance_metric(self) -> str:
         return self._distance_metric
@@ -167,7 +171,12 @@ class DimensionalityReduction:
     def compute_metrics(self, k: int) -> Dict[str, Any]:
         if not self.points_calculated:
             raise RuntimeError("Points not calculated!")
-        return self._metrics.calculate_all_metrics(self.all_points, k)
+        return self._metrics.calculate_all_metrics(
+            self.all_points,
+            self._last_idr_algorithm,
+            hash(str(self._landmarks['position'])),
+            k
+        )
 
     def select_landmarks(self, seed: int = 42):
         self._landmarks = self._heuristic_func(
@@ -272,6 +281,7 @@ class DimensionalityReduction:
         )
 
         self._points_calculated = True
+        self._last_idr_algorithm = idr_algorithm
 
     def _compute_eigenstuff(self) -> Tuple[np.ndarray, np.ndarray]:
         # H is the mean centering matrix

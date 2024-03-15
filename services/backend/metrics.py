@@ -23,8 +23,15 @@ class Metrics:
         self.metrics = {}
 
     def calculate_all_metrics(
-        self, data: pd.DataFrame, k: int = 7
+        self,
+        data: pd.DataFrame,
+        idr_algorithm: str,
+        hashed_landmarks: int,
+        k: int = 7
     ) -> Dict[str, Any]:
+        if (idr_algorithm, hashed_landmarks, k) in self.metrics:
+            return self.metrics[(idr_algorithm, hashed_landmarks, k)]
+
         self.data = data
         self.N = len(data)
 
@@ -56,7 +63,7 @@ class Metrics:
             "neighborhood_hit": self.neighborhood_hit(ld_knn),
             "average_local_error": self.average_local_error(ld_dist, hd_dist),
         }
-        self.metrics[k] = metric
+        self.metrics[(idr_algorithm, hashed_landmarks, k)] = metric
         return metric
 
     def get_distance_matrices(self) -> Tuple[np.ndarray, np.ndarray]:
