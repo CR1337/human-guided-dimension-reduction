@@ -7,7 +7,6 @@ from typing import Any, Callable, Dict, List, Tuple
 
 from metrics import Metrics
 from dataset import Dataset
-from inference import Predictor
 from imds import Imds
 
 
@@ -62,8 +61,7 @@ class Lmds:
         num_landmarks: int,
         dataset: Dataset,
         dimension: int = 2,
-        create_dataset: bool = False,
-        model_path: str = "/server/checkpoints/best",
+        create_dataset: bool = False
     ):
         self._heuristic = heuristic
         if heuristic == "random":
@@ -101,7 +99,6 @@ class Lmds:
 
         self._landmarks_reduces = False
         self._points_calculated = False
-        self.model_path = model_path
 
         if not create_dataset:
             self._metrics = Metrics(
