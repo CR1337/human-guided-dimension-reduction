@@ -8,6 +8,7 @@ from typing import List
 from data_loading import process_single_input
 import neural_network
 
+
 class Predictor:
     def __init__(self, model_path: str):
         self.nn, max_landmarks = self.load_nn(model_path)
@@ -40,7 +41,9 @@ class Predictor:
 
     def inference(self, distance_matrix):
         # Process the distance matrix
-        nn_input = process_single_input(distance_matrix, max_landmarks=self.max_landmarks)
+        nn_input = process_single_input(
+            distance_matrix, max_landmarks=self.max_landmarks
+        )
         # Get a distance matrix and call self.model(distance_matrix)
         with torch.no_grad():
             upper_triangle = self.nn.forward(nn_input)

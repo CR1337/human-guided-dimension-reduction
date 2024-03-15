@@ -2,7 +2,6 @@ from flask import Flask, request
 from flask_cors import CORS
 from lmds import Lmds
 from dataset import Dataset
-from metrics import Metrics
 from imds import Imds
 from typing import Dict, List, Any
 import human_readable_ids
@@ -47,7 +46,6 @@ def route_constants():
     return {
         'heuristics': Lmds.HEURISTICS,
         'distance_metrics': Lmds.DISTANCE_METRICS,
-        'metrics': Metrics.METRIC_NAMES,
         'min_landmark_amount': Lmds.LANDMARK_AMOUNT_RANGE[0],
         'max_landmark_amount': Lmds.LANDMARK_AMOUNT_RANGE[1],
         'imds_algorithms': Imds.VALID_NAMES,
@@ -125,8 +123,10 @@ def route_datapoints(lmds_id: str):
     lmds = lmds_instances.get(lmds_id)
     if lmds is None:
         return {"message": f"Unknown LMDS instance: {lmds_id}"}, 404
+
     if not lmds.landmarks_reduced:
         return {"message": "Landmarks have not been reduced yet"}, 400
+
     imds_algorithm = request.args.get(
         'imds_algorithm', Imds.VALID_NAMES[0]
     )
@@ -142,8 +142,10 @@ def route_lmds_metrics(lmds_id: str):
     lmds = lmds_instances.get(lmds_id)
     if lmds is None:
         return {"message": f"Unknown LMDS instance: {lmds_id}"}, 404
+
     if not lmds.landmarks_reduced:
         return {"message": "Landmarks have not been reduced yet"}, 400
+
     k = request.args.get('k', DEFAULT_K, int)
     return {
         'metrics': lmds.compute_metrics(k),
