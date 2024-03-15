@@ -1,8 +1,8 @@
 from flask import Flask, request
 from flask_cors import CORS
-from services.backend.dr import DimensionalityReduction
+from dr import DimensionalityReduction
 from dataset import Dataset
-from services.backend.idr import InverseDimensionaltyReduction
+from idr import InverseDimensionaltyReduction
 from typing import Dict, List, Any
 import human_readable_ids
 import pandas as pd

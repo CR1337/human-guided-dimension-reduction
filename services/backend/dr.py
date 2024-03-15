@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, List, Tuple
 
 from metrics import Metrics
 from dataset import Dataset
-from services.backend.idr import InverseDimensionaltyReduction
+from idr import InverseDimensionaltyReduction
 
 
 def balanced_heuristic(
