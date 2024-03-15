@@ -2,7 +2,9 @@ from datasets import load_dataset
 
 
 def download_dataset(dataset_name):
-    return load_dataset(dataset_name, split=["train"], cache_dir="./volumes/data/cache")
+    return load_dataset(
+        dataset_name, split=["train"], cache_dir="./volumes/data/cache"
+    )
 
 
 def save_dataset(dataset, dataset_name):
