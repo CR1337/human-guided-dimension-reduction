@@ -1,14 +1,15 @@
 from pathlib import Path
 from simple_parsing import field, list_field
 from dataclasses import dataclass
-from typing import Literal, List
+from typing import Literal
 
 
 @dataclass()
 class TrainingArgs:
     # Run parameters
     accelerator: Literal["cpu", "cuda"] = "cuda"
-    precision: Literal["32-true", "16-mixed", "bf16-mixed", "64-true"] = "32-true"
+    precision: Literal["32-true", "16-mixed",
+                       "bf16-mixed", "64-true"] = "32-true"
     run_name: str = field(alias="-rn", default="default")
     debug: bool = field(alias="--debug", default=False)
     offline: bool = field(alias="--offline", default=False)
