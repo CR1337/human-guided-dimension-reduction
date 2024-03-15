@@ -16,7 +16,7 @@ app = Flask(__name__)
 CORS(app)
 
 
-lmds_instances: Dict[str, DimensionalityReduction] = {}
+instances: Dict[str, DimensionalityReduction] = {}
 
 
 def dataframe_to_json(dataframe: pd.DataFrame) -> List[Dict[str, Any]]:
@@ -46,25 +46,31 @@ def route_constants():
     return {
         'heuristics': DimensionalityReduction.HEURISTICS,
         'distance_metrics': DimensionalityReduction.DISTANCE_METRICS,
-        'min_landmark_amount': DimensionalityReduction.LANDMARK_AMOUNT_RANGE[0],
-        'max_landmark_amount': DimensionalityReduction.LANDMARK_AMOUNT_RANGE[1],
-        'imds_algorithms': InverseDimensionaltyReduction.VALID_NAMES,
+        'min_landmark_amount': (
+            DimensionalityReduction.LANDMARK_AMOUNT_RANGE[0]
+        ),
+        'max_landmark_amount': (
+            DimensionalityReduction.LANDMARK_AMOUNT_RANGE[1]
+        ),
+        'idr_algorithms': InverseDimensionaltyReduction.VALID_NAMES,
         'dataset_names': Dataset.VALID_NAMES
     }, 200
 
 
-@app.route('/lmds', methods=['GET', 'POST'])
-def route_lmds():
+@app.route('/instances', methods=['GET', 'POST'])
+def route_instances():
     if request.method == 'GET':
         return {
-            'lmds': [
-                lmds.to_json() | {'id': id}
-                for id, lmds in lmds_instances.items()
+            'instances': [
+                instance.to_json() | {'id': id}
+                for id, instance in instances.items()
             ]
         }
 
     elif request.method == 'POST':
-        heuristic = request.json.get('heuristic', DimensionalityReduction.HEURISTICS[0])
+        heuristic = request.json.get(
+            'heuristic', DimensionalityReduction.HEURISTICS[0]
+        )
         distance_metric = request.json.get(
             'distance_metric', DimensionalityReduction.DISTANCE_METRICS[0]
         )
@@ -73,83 +79,85 @@ def route_lmds():
         )
         seed = request.json.get('seed', DEFAULT_SEED)
         dataset_name = request.json.get('dataset_name', Dataset.VALID_NAMES[0])
-        lmds_id = human_readable_ids.get_new_id().lower().replace(" ", "-")
-        lmds = DimensionalityReduction(
+        instance_ids = (
+            human_readable_ids.get_new_id().lower().replace(" ", "-")
+        )
+        instance = DimensionalityReduction(
             heuristic=heuristic,
             distance_metric=distance_metric,
             num_landmarks=num_landmarks,
             dataset=Dataset(dataset_name)
         )
-        lmds_instances[lmds_id] = lmds
-        lmds.select_landmarks(seed=seed)
-        lmds.reduce_landmarks()
-        return {'lmds': lmds.to_json() | {'id': lmds_id}}, 201
+        instances[instance_ids] = instance
+        instance.select_landmarks(seed=seed)
+        instance.reduce_landmarks()
+        return {'instance': instance.to_json() | {'id': instance_ids}}, 201
 
 
-@app.route('/lmds/<lmds_id>', methods=['GET', 'DELETE'])
-def route_lmds_lmds_id(lmds_id: str):
+@app.route('/instances/<instance_id>', methods=['GET', 'DELETE'])
+def route_instance_id(instance_id: str):
     if request.method == 'GET':
-        lmds = lmds_instances.get(lmds_id)
-        if lmds is None:
-            return {"message": f"Unknown LMDS instance: {lmds_id}"}, 404
-        return {'lmds': lmds.to_json() | {'id': lmds_id}}, 200
+        instance = instances.get(instance_id)
+        if instance is None:
+            return {"message": f"Unknown instance: {instance_id}"}, 404
+        return {'instance': instance.to_json() | {'id': instance_id}}, 200
 
     elif request.method == 'DELETE':
-        if lmds_id not in lmds_instances:
-            return {"message": f"Unknown LMDS instance: {lmds_id}"}, 404
-        del lmds_instances[lmds_id]
+        if instance_id not in instances:
+            return {"message": f"Unknown instance: {instance_id}"}, 404
+        del instances[instance_id]
         return {}, 200
 
 
-@app.route('/lmds/<lmds_id>/landmarks', methods=['GET', 'PATCH'])
-def route_landmarks(lmds_id: str):
-    lmds = lmds_instances.get(lmds_id)
-    if lmds is None:
-        return {"message": f"Unknown LMDS instance: {lmds_id}"}, 404
+@app.route('/instances/<instance_id>/landmarks', methods=['GET', 'PATCH'])
+def route_landmarks(instance_id: str):
+    instance = instances.get(instance_id)
+    if instance is None:
+        return {"message": f"Unknown instance: {instance_id}"}, 404
 
     if request.method == 'GET':
-        return {'landmarks': dataframe_to_json(lmds.landmarks)}, 200
+        return {'landmarks': dataframe_to_json(instance.landmarks)}, 200
 
     elif request.method == 'PATCH':
         new_landmarks = pd.DataFrame(request.json['landmarks']).set_index('id')
-        landmarks = lmds.landmarks
+        landmarks = instance.landmarks
         landmarks.update(new_landmarks[['position', 'label']])
-        lmds.landmarks = landmarks
+        instance.landmarks = landmarks
         return {}, 200
 
 
-@app.route('/lmds/<lmds_id>/datapoints', methods=['GET'])
-def route_datapoints(lmds_id: str):
-    lmds = lmds_instances.get(lmds_id)
-    if lmds is None:
-        return {"message": f"Unknown LMDS instance: {lmds_id}"}, 404
+@app.route('/instances/<instance_id>/datapoints', methods=['GET'])
+def route_datapoints(instance_id: str):
+    instance = instances.get(instance_id)
+    if instance is None:
+        return {"message": f"Unknown instance: {instance_id}"}, 404
 
-    if not lmds.landmarks_reduced:
+    if not instance.landmarks_reduced:
         return {"message": "Landmarks have not been reduced yet"}, 400
 
-    imds_algorithm = request.args.get(
-        'imds_algorithm', InverseDimensionaltyReduction.VALID_NAMES[0]
+    idr_algorithm = request.args.get(
+        'idr_algorithm', InverseDimensionaltyReduction.VALID_NAMES[0]
     )
-    lmds.calculate(imds_algorithm)
+    instance.calculate(idr_algorithm)
     return {
-        'datapoints': dataframe_to_json(lmds.all_points),
-        'lmds': lmds.to_json() | {'id': lmds_id}
+        'datapoints': dataframe_to_json(instance.all_points),
+        'instance': instance.to_json() | {'id': instance_id}
     }, 200
 
 
-@app.route('/lmds/<lmds_id>/metrics', methods=['GET'])
-def route_lmds_metrics(lmds_id: str):
-    lmds = lmds_instances.get(lmds_id)
-    if lmds is None:
-        return {"message": f"Unknown LMDS instance: {lmds_id}"}, 404
+@app.route('/instances/<instance_id>/metrics', methods=['GET'])
+def route_instance_metrics(instance_id: str):
+    instance = instances.get(instance_id)
+    if instance is None:
+        return {"message": f"Unknown instance: {instance_id}"}, 404
 
-    if not lmds.landmarks_reduced:
+    if not instance.landmarks_reduced:
         return {"message": "Landmarks have not been reduced yet"}, 400
 
     k = request.args.get('k', DEFAULT_K, int)
     return {
-        'metrics': lmds.compute_metrics(k),
-        'lmds': lmds.to_json() | {'id': lmds_id}
+        'metrics': instance.compute_metrics(k),
+        'instance': instance.to_json() | {'id': instance_id}
     }, 200
 
 

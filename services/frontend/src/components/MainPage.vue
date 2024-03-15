@@ -39,7 +39,7 @@
         </div>
       </td>
       <td style="vertical-align:top">
-        <b>1. Create a new LMDS instance.</b>
+        <b>1. Create a new instance.</b>
         <div>
           <label for="datasetName">Dataset: </label>
           <select v-model="newDatasetName" name="datasetName">
@@ -68,41 +68,41 @@
           <input v-model="seed" type="number" name="seed" min="0" step="1">
           <br>
 
-          <button @click="newLmds()" :disabled="busy">New LMDS</button>
+          <button @click="newDr()" :disabled="busy">Creare new Instance</button>
         </div>
         <br>
 
-        <b>2. Select one of all created LMDS instances.</b>
+        <b>2. Select one of all created instances.</b>
         <div>
-          <label for="lmds">LMDS: </label>
-          <select v-model="selectedLmdsId" name="lmds" @change="lmdsSelectionChanged()" :disabled="busy">
-            <option v-for="lmds in lmdsIds" :value="lmds">{{ lmds }}</option>
+          <label for="instance">Instance: </label>
+          <select v-model="selectedInstanceId" name="instance" @change="instanceSelectionChanged()" :disabled="busy">
+            <option v-for="instance in instanceIds" :value="instance">{{ instance }}</option>
           </select>
           <br>
-          Landmark selection heuristic: <a v-if="selectedLmdsId !== null">{{ selectedLmds.heuristic }}</a><br>
-          Distance metric: <a v-if="selectedLmdsId !== null">{{ selectedLmds.distance_metric }}</a><br>
-          Number of landmarks: <a v-if="selectedLmdsId !== null">{{ selectedLmds.num_landmarks }}</a><br>
-          Points calculated: <a v-if="selectedLmdsId !== null">{{ selectedLmds.points_calculated }}</a><br>
-          <button @click="deleteLmds()" :disabled="selectedLmdsId == null || busy">Delete</button>
+          Landmark selection heuristic: <a v-if="selectedInstanceId !== null">{{ selectedInstance.heuristic }}</a><br>
+          Distance metric: <a v-if="selectedInstanceId !== null">{{ selectedInstance.distance_metric }}</a><br>
+          Number of landmarks: <a v-if="selectedInstanceId !== null">{{ selectedInstance.num_landmarks }}</a><br>
+          Points calculated: <a v-if="selectedInstanceId !== null">{{ selectedInstance.points_calculated }}</a><br>
+          <button @click="deleteInstance()" :disabled="selectedInstanceId == null || busy">Delete</button>
         </div>
         <br>
 
         <b>3. Move the landmarks.</b><br>
         <div>
-          <button @click="copyLandmarks()" :disabled="selectedLmdsId == null">Copy Landmarks</button>
-          <button @click="pasteLandmarks()" :disabled="selectedLmdsId == null || !landmarksPastable">Paste Landmarks</button>
-          <button @click="resetLandmarks()" :disabled="selectedLmdsId == null">Reset Landmarks</button>
+          <button @click="copyLandmarks()" :disabled="selectedInstanceId == null">Copy Landmarks</button>
+          <button @click="pasteLandmarks()" :disabled="selectedInstanceId == null || !landmarksPastable">Paste Landmarks</button>
+          <button @click="resetLandmarks()" :disabled="selectedInstanceId == null">Reset Landmarks</button>
         </div>
         <br>
 
         <b>4. Perform the dimensionality reduction.</b>
         <div>
-          <label for="imds">Inverse MDS algorithm: </label>
-          <select v-model="selectedImdsAlgorithm" name="imds" :disabled="selectedLmds == null">
-            <option v-for="algorithm in imdsAlgorithms" :value="algorithm">{{ algorithm }}</option>
+          <label for="idr">Inverse DR algorithm: </label>
+          <select v-model="selectedIdrAlgorithm" name="idr" :disabled="selectedInstance == null">
+            <option v-for="algorithm in idrAlgorithms" :value="algorithm">{{ algorithm }}</option>
           </select>
 
-          <button @click="updateLandmarks()" :disabled="selectedLmdsId == null || busy">Calculate</button>
+          <button @click="updateLandmarks()" :disabled="selectedInstanceId == null || busy">Calculate</button>
         </div>
         <br>
 
@@ -111,7 +111,7 @@
           <label for="k">k: </label>
           <input
             v-model="k" type="number" name="k" min="1" max="1000" step="1" @change="getMetrics()"
-            :disabled="selectedLmds == null || !selectedLmds.points_calculated || metrics == null"
+            :disabled="selectedInstance == null || !selectedInstance.points_calculated || metrics == null"
           >
           <button @click="clearHistory()" :disabled="prevMetrics.length == 0">Clear History</button>
           <br>
@@ -162,7 +162,7 @@
           <label for="coloring">Coloring: </label>
           <select
             v-model="coloring" name="coloring" @change="updateCanvas()"
-            :disabled="selectedLmds == null || !selectedLmds.points_calculated || metrics == null"
+            :disabled="selectedInstance == null || !selectedInstance.points_calculated || metrics == null"
           >
             <option value="label">label</option>
             <option value="averageLocalError">average local error</option>
@@ -223,8 +223,8 @@ export default {
             this.distanceMetrics = data.distance_metrics;
             this.newDistanceMetric = this.distanceMetrics[0];
 
-            this.imdsAlgorithms = data.imds_algorithms;
-            this.selectedImdsAlgorithm = this.imdsAlgorithms[0];
+            this.idrAlgorithms = data.idr_algorithms;
+            this.selectedIdrAlgorithm = this.idrAlgorithms[0];
           }).catch((error) => {
               console.error(error);
           });
@@ -253,9 +253,9 @@ export default {
 
           // #region INSTANCE SELECTION
 
-          lmdsIds: [],
-          selectedLmdsId: null,
-          selectedLmds: null,
+          instanceIds: [],
+          selectedInstanceId: null,
+          selectedInstance: null,
 
           datapoints: [],
 
@@ -273,8 +273,8 @@ export default {
 
           // #region DIMENSIONALITY REDUCTION
 
-          imdsAlgorithms: [],
-          selectedImdsAlgorithm: null,
+          idrAlgorithms: [],
+          selectedIdrAlgorithm: null,
           computingDatapoints: false,
 
           // #endregion
@@ -298,9 +298,9 @@ export default {
     methods: {
       // #region INSTANCE CREATION
 
-      newLmds() {
+      newDr() {
         this.computingDatapoints = true;
-        fetch('http://' + this.host + ':5000/lmds', {
+        fetch('http://' + this.host + ':5000/instances', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -315,9 +315,9 @@ export default {
         }).then((response) => {
             return response.json();
         }).then((data) => {
-            this.lmdsIds.push(data.lmds.id);
-            this.selectedLmdsId = data.lmds.id;
-            this.selectedLmds = data.lmds;
+            this.instanceIds.push(data.instance.id);
+            this.selectedInstanceId = data.instance.id;
+            this.selectedInstance = data.instance;
             this.metrics = null;
             this.getLandmarks();
         }).catch((error) => {
@@ -330,14 +330,14 @@ export default {
 
       // #region INSTANCE SELECTION
 
-      lmdsSelectionChanged() {
+      instanceSelectionChanged() {
         this.computingDatapoints = true;
-        fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId, {cache: "no-store"})
+        fetch('http://' + this.host + ':5000/instances/' + this.selectedInstanceId, {cache: "no-store"})
             .then((response) => {
                 return response.json();
             }).then((data) => {
-                this.selectedLmds = data.lmds;
-                if (this.selectedLmds.points_calculated) {
+                this.selectedInstance = data.instance;
+                if (this.selectedInstance.points_calculated) {
                     this.getDatapoints();
                     this.getMetrics();
                 } else {
@@ -349,16 +349,16 @@ export default {
             });
       },
 
-      deleteLmds() {
+      deleteInstance() {
         this.computingDatapoints = true;
-        fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId, {
+        fetch('http://' + this.host + ':5000/instances/' + this.selectedInstanceId, {
             method: 'DELETE',
         }).then((response) => {
             return response.json();
         }).then((data) => {
-            this.lmdsIds = this.lmdsIds.filter((lmdsId) => lmdsId !== this.selectedLmdsId);
-            this.selectedLmdsId = null;
-            this.selectedLmds = null;
+            this.instanceIds = this.instanceIds.filter((instanceId) => instanceId !== this.selectedInstanceId);
+            this.selectedInstanceId = null;
+            this.selectedInstance = null;
             this.datapoints = [];
             this.hoveredPointIndex = null;
             this.selectedPointIndex = null;
@@ -377,12 +377,12 @@ export default {
 
       getLandmarks() {
         this.computingDatapoints = true;
-        fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId + '/landmarks', {cache: "no-store"})
+        fetch('http://' + this.host + ':5000/instances/' + this.selectedInstanceId + '/landmarks', {cache: "no-store"})
             .then((response) => {
                 return response.json();
             }).then((data) => {
                 this.datapoints = data.landmarks;
-                this.initialLandmarks[this.selectedLmdsId] = data.landmarks.map((landmark) => ({...landmark}));
+                this.initialLandmarks[this.selectedInstanceId] = data.landmarks.map((landmark) => ({...landmark}));
                 this.updateCanvas();
             }).catch((error) => {
                 console.error(error);
@@ -396,15 +396,15 @@ export default {
       // #region LANDMARK MOVEMENT
 
       copyLandmarks() {
-        this.copiedLandmarks[this.selectedLmdsId] = this.datapoints.filter((landmark) => landmark.is_landmark).map((landmark) => ({...landmark}));
+        this.copiedLandmarks[this.selectedInstanceId] = this.datapoints.filter((landmark) => landmark.is_landmark).map((landmark) => ({...landmark}));
       },
 
       pasteLandmarks() {
-        this.replaceLandmarks(this.copiedLandmarks[this.selectedLmdsId])
+        this.replaceLandmarks(this.copiedLandmarks[this.selectedInstanceId])
       },
 
       resetLandmarks() {
-        this.replaceLandmarks(this.initialLandmarks[this.selectedLmdsId]);
+        this.replaceLandmarks(this.initialLandmarks[this.selectedInstanceId]);
       },
 
       replaceLandmarks(landmarks) {
@@ -437,7 +437,7 @@ export default {
 
       updateLandmarks() {
         this.computingDatapoints = true;
-        fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId + '/landmarks', {
+        fetch('http://' + this.host + ':5000/instances/' + this.selectedInstanceId + '/landmarks', {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json'
@@ -457,13 +457,13 @@ export default {
 
       getDatapoints() {
         this.computingDatapoints = true;
-        fetch('http://' + this.host + ':5000/lmds/' + this.selectedLmdsId + '/datapoints?imds_algorithm=' + this.selectedImdsAlgorithm, {cache: "no-store"})
+        fetch('http://' + this.host + ':5000/instances/' + this.selectedInstanceId + '/datapoints?idr_algorithm=' + this.selectedIdrAlgorithm, {cache: "no-store"})
             .then((response) => {
                 return response.json();
             }).then((data) => {
                 this.datapoints = data.datapoints;
-                this.selectedLmdsId = data.lmds.id;
-                this.selectedLmds = data.lmds;
+                this.selectedInstanceId = data.instance.id;
+                this.selectedInstance = data.instance;
 
                 for (let i = this.datapoints.length - 1; i > 0; i--) {
                   const j = Math.floor(Math.random() * (i + 1));
@@ -490,7 +490,7 @@ export default {
       getMetrics() {
         this.calculatingMetrics = true;
         this.coloring = 'label';
-        fetch(`http://${this.host}:5000/lmds/${this.selectedLmdsId}/metrics?k=${this.k}`, {cache: "no-store"})
+        fetch(`http://${this.host}:5000/instances/${this.selectedInstanceId}/metrics?k=${this.k}`, {cache: "no-store"})
             .then((response) => {
                 return response.json();
             }).then((data) => {
@@ -523,17 +523,17 @@ export default {
         frontendPort() { return window.location.origin.split("/")[2].split(":")[1]; },
 
         distanceMetric() {
-          if (this.selectedLmds == null) return null;
-          return this.selectedLmds.distance_metric;
+          if (this.selectedInstance == null) return null;
+          return this.selectedInstance.distance_metric;
         },
 
         landmarksPastable() {
-          return this.copiedLandmarks[this.selectedLmdsId] !== undefined;
+          return this.copiedLandmarks[this.selectedInstanceId] !== undefined;
         },
 
         labels() {
-          if (this.selectedLmds == null) return [];
-          return this.selectedLmds.labels;
+          if (this.selectedInstance == null) return [];
+          return this.selectedInstance.labels;
         }
     }
 }
