@@ -151,21 +151,5 @@ def route_lmds_metrics(lmds_id: str):
     }, 200
 
 
-@app.route('/lmds/<lmds_id>/metrics/<metric_name>', methods=['GET'])
-def route_lmds_metric(lmds_id: str, metric_name: str):
-    lmds = lmds_instances.get(lmds_id)
-    if lmds is None:
-        return {"message": f"Unknown LMDS instance: {lmds_id}"}, 404
-    if not lmds.landmarks_reduced:
-        return {"message": "Landmarks have not been reduced yet"}, 400
-    k = request.args.get('k', DEFAULT_K, int)
-    if metric_name not in Metrics.METRIC_NAMES:
-        return {"message": f"Unknown metric: {metric_name}"}, 400
-    return {
-        'metric': lmds.compute_metrics(k)[metric_name],
-        'lmds': lmds.to_json() | {'id': lmds_id}
-    }, 200
-
-
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
