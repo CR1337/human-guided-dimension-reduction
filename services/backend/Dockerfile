@@ -13,7 +13,7 @@ RUN chmod +x /server/compile-neighbors
 RUN ./compile-neighbors
 RUN chmod +x /server/neighbors/neighbors
 
-COPY . /server/.
+COPY ./*.py /server/.
 
 ENV INSIDE_DOCKER=1
 
