@@ -14,12 +14,14 @@ import pandas as pd
 sys.path.append(
     path.dirname(path.dirname(path.abspath(__file__))) + "/services/backend"
 )
-from lmds import Lmds  # noqa: E402
+from dr import DimensionalityReduction  # noqa: E402
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Create dataset for training")
-    parser.add_argument("data_dir", type=str, help="Directory to store the dataset")
+    parser.add_argument(
+        "data_dir", type=str, help="Directory to store the dataset"
+    )
     parser.add_argument(
         "-ts",
         "--train_size",
@@ -35,7 +37,10 @@ def parse_args():
         help="Size of the validation set",
     )
     parser.add_argument(
-        "-tes", "--test_size", default=5_250, type=float, help="Size of the test set"
+        "-tes", "--test_size",
+        default=5_250,
+        type=float,
+        help="Size of the test set"
     )
     parser.add_argument(
         "-ll",
@@ -62,7 +67,12 @@ def parse_args():
     parser.add_argument(
         "--debug", action="store_true", help="Wait for debugger to attach"
     )
-    parser.add_argument("-d", "--data_path", type=str, help="Path to the data", default="./volumes/data/imdb_embeddings_small.pkl")
+    parser.add_argument(
+        "-d", "--data_path",
+        type=str,
+        help="Path to the data",
+        default="./volumes/data/imdb_embeddings_small.pkl"
+    )
     return parser.parse_args()
 
 
@@ -84,13 +94,15 @@ def main():
     random.seed(args.seed)
     seeds = random.sample(range(1_000_000), samples_per_landmark_count)
 
-    train_seed_count = int(args.train_size / num_samples * samples_per_landmark_count)
+    train_seed_count = int(
+        args.train_size / num_samples * samples_per_landmark_count
+    )
     val_seed_count = int(
         args.validation_size / num_samples * samples_per_landmark_count
     )
     train_seeds = seeds[:train_seed_count]
-    val_seeds = seeds[train_seed_count : train_seed_count + val_seed_count]
-    test_seeds = seeds[train_seed_count + val_seed_count :]
+    val_seeds = seeds[train_seed_count:train_seed_count + val_seed_count]
+    test_seeds = seeds[train_seed_count + val_seed_count:]
 
     train, val, test = [], [], []
     for i in tqdm(
@@ -101,7 +113,8 @@ def main():
         val += generate_data(i, dataset, val_seeds, args.distance_metric)
         test += generate_data(i, dataset, test_seeds, args.distance_metric)
 
-    # This is slow, but it is only done once and a sanity check to make sure that the sets are disjoint
+    # This is slow, but it is only done once and a sanity check
+    # to make sure that the sets are disjoint
     for train_example in train:
         if train_example in val or train_example in test:
             raise ValueError("Train and validation or test set overlap")
@@ -120,9 +133,12 @@ def main():
 
 
 def generate_data(
-    num_landmarks: int, dataset: pd.DataFrame, seeds: List[int], distance_metric: str
+    num_landmarks: int,
+    dataset: pd.DataFrame,
+    seeds: List[int],
+    distance_metric: str
 ) -> Dict[str, np.ndarray]:
-    lmds = Lmds(
+    dr = DimensionalityReduction(
         heuristic="random",
         distance_metric=distance_metric,
         num_landmarks=num_landmarks,
@@ -131,20 +147,26 @@ def generate_data(
     )
     result = []
     for seed in seeds:
-        lmds.select_landmarks(seed=seed)
-        lmds.reduce_landmarks()
+        dr.select_landmarks(seed=seed)
+        dr.reduce_landmarks()
 
-        original_position = np.vstack(lmds.landmarks["embeddings"].apply(np.array))
-        projected_position = np.vstack(lmds.landmarks["position"].apply(np.array))
+        original_position = np.vstack(
+            dr.landmarks["embeddings"].apply(np.array)
+        )
+        projected_position = np.vstack(
+            dr.landmarks["position"].apply(np.array)
+        )
 
-        original_distances = lmds.distances(
+        original_distances = dr.distances(
             original_position, original_position
         ).tolist()
-        projected_distances = lmds.distances(
+        projected_distances = dr.distances(
             projected_position, projected_position
         ).tolist()
 
-        result.append({"label": original_distances, "input": projected_distances})
+        result.append(
+            {"label": original_distances, "input": projected_distances}
+        )
     return result
 
 

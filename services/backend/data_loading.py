@@ -22,7 +22,8 @@ class DataModule(L.LightningDataModule):
         cache_exists, cache_path = self._get_dataset_cache_path()
         if not cache_exists:
             print(
-                f"Could not find cached processed dataset: {cache_path}, creating it now..."
+                "Could not find cached processed dataset: "
+                f"{cache_path}, creating it now..."
             )
             # Load and process dataset if not cached
             processed_datasets = self.load_and_process_dataset()
@@ -37,7 +38,10 @@ class DataModule(L.LightningDataModule):
         cache_exists, cache_path = self._get_dataset_cache_path()
         assert (
             cache_exists
-        ), f"Could not find cached processed dataset: {cache_path}, should have been created in prepare_data()"
+        ), (
+            f"Could not find cached processed dataset: {cache_path}, "
+            "should have been created in prepare_data()"
+        )
 
         print(f"Loading cached processed dataset from {cache_path}...")
         processed_datasets = datasets.load_from_disk(cache_path)
@@ -57,7 +61,8 @@ class DataModule(L.LightningDataModule):
         }
         print("Loading raw dataset...")
 
-        # Create temporary directory for dataset caching, if disk space conservation is enabled
+        # Create temporary directory for dataset caching,
+        # if disk space conservation is enabled
         train_val_datasets = datasets.load_dataset(
             "json",
             data_files=data_files,
@@ -93,7 +98,8 @@ class DataModule(L.LightningDataModule):
         processed_data_dir = str(self.data_dir / "processed")
         cache_path = os.path.join(
             processed_data_dir,
-            f"seq_len_{self.max_landmarks}process_fn_hash{process_fn_hash}.arrow",
+            f"seq_len_{self.max_landmarks}"
+            f"process_fn_hash{process_fn_hash}.arrow",
         )
 
         # Determine if a valid cache file exists and return its path
@@ -102,14 +108,32 @@ class DataModule(L.LightningDataModule):
         return False, cache_path
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=None, collate_fn=self.collate_fn, shuffle=True, num_workers=self.num_workers)
+        return DataLoader(
+            self.train_dataset,
+            batch_size=None,
+            collate_fn=self.collate_fn,
+            shuffle=True,
+            num_workers=self.num_workers
+        )
 
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, batch_size=None, collate_fn=self.collate_fn, shuffle=False, num_workers=self.num_workers)
+        return DataLoader(
+            self.val_dataset,
+            batch_size=None,
+            collate_fn=self.collate_fn,
+            shuffle=False,
+            num_workers=self.num_workers
+        )
 
     def test_dataloader(self):
-        return DataLoader(self.test_dataset, batch_size=None, collate_fn=self.collate_fn, shuffle=False, num_workers=self.num_workers)
-    
+        return DataLoader(
+            self.test_dataset,
+            batch_size=None,
+            collate_fn=self.collate_fn,
+            shuffle=False,
+            num_workers=self.num_workers
+        )
+
     def collate_fn(self, batch):
         inputs = torch.Tensor(batch["input"])
         labels = torch.Tensor(batch["label"])
@@ -143,11 +167,15 @@ def make_process_function(max_landmarks):
 
     return process_function
 
+
 def process_single_input(input, max_landmarks):
     def _pad_array(array):
         return np.pad(
             array,
-            ((0, max_landmarks - array.shape[0]), (0, max_landmarks - array.shape[1])),
+            (
+                (0, max_landmarks - array.shape[0]),
+                (0, max_landmarks - array.shape[1])
+            ),
             mode="constant",
             constant_values=-1,
         )

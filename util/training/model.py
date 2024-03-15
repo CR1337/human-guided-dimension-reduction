@@ -31,7 +31,12 @@ class BasicModel(L.LightningModule):
         outputs = self.forward(batch["input"])
         loss = self._calculate_loss(outputs, batch["label"], batch["mask"])
         self.log(
-            "val/loss", loss, on_step=False, on_epoch=True, sync_dist=True, batch_size=1
+            "val/loss",
+            loss,
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+            batch_size=1
         )
 
     def test_step(self, batch, batch_idx):

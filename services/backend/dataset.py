@@ -82,6 +82,9 @@ class Dataset:
         else:
             raise ValueError(f"Invalid distance metric: {distance_metric}")
 
+    def __len__(self) -> int:
+        return len(self._dataframe)
+
     def __init__(self, name: str, no_neighbors: bool = False):
         if name not in self.VALID_NAMES:
             raise ValueError(f"Invalid dataset name: {name}")

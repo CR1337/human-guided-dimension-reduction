@@ -23,7 +23,9 @@ def main():
     """
     args = arg_parser()
     sweep_id = wandb.sweep(
-        sweep_cfgs[args.name], project=train.WANDB_PROJECT, entity=train.WANDB_ENTITY
+        sweep_cfgs[args.name],
+        project=train.WANDB_PROJECT,
+        entity=train.WANDB_ENTITY
     )
     wandb.agent(
         sweep_id,

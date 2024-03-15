@@ -7,8 +7,7 @@ from typing import Any, Callable, Dict, List, Tuple
 
 from metrics import Metrics
 from dataset import Dataset
-from inference import Predictor
-from imds import Imds
+from idr import InverseDimensionaltyReduction
 
 
 def balanced_heuristic(
@@ -28,7 +27,7 @@ def balanced_heuristic(
     )
 
 
-class Lmds:
+class DimensionalityReduction:
     HEURISTICS: List[str] = ["balanced", "random", "first"]
     DISTANCE_METRICS: List[str] = ["euclidean", "cosine"]
     LANDMARK_AMOUNT_RANGE: Tuple[int, int] = (10, 30)
@@ -55,6 +54,8 @@ class Lmds:
 
     _metrics: Metrics
 
+    _last_idr_algorithm: str | None
+
     def __init__(
         self,
         heuristic: str,
@@ -62,17 +63,20 @@ class Lmds:
         num_landmarks: int,
         dataset: Dataset,
         dimension: int = 2,
-        create_dataset: bool = False,
-        model_path: str = "/server/checkpoints/best",
+        create_dataset: bool = False
     ):
         self._heuristic = heuristic
         if heuristic == "random":
-            self._heuristic_func = lambda dataset, num_landmarks, seed: dataset.dataframe.sample(
-                n=num_landmarks, random_state=seed
+            self._heuristic_func = (
+                lambda dataset, num_landmarks, seed: dataset.dataframe.sample(
+                    n=num_landmarks, random_state=seed
+                )
             )
         elif heuristic == "first":
-            self._heuristic_func = lambda dataset, num_landmarks, _: dataset.dataframe.head(
-                num_landmarks
+            self._heuristic_func = (
+                lambda dataset, num_landmarks, _: dataset.dataframe.head(
+                    num_landmarks
+                )
             )
         elif heuristic == "balanced":
             self._heuristic_func = balanced_heuristic
@@ -85,7 +89,9 @@ class Lmds:
         elif distance_metric == "cosine":
             self._distance_metric_func = cosine_distances
         else:
-            raise NotImplementedError(f"Unknown distance metric: {distance_metric}")
+            raise NotImplementedError(
+                f"Unknown distance metric: {distance_metric}"
+            )
 
         self._num_landmarks = num_landmarks
         self._dataset = dataset
@@ -101,12 +107,13 @@ class Lmds:
 
         self._landmarks_reduces = False
         self._points_calculated = False
-        self.model_path = model_path
 
         if not create_dataset:
             self._metrics = Metrics(
                 distance_metric, dataset.neighbors(distance_metric)
             )
+
+        self._last_idr_algorithm = None
 
     @property
     def distance_metric(self) -> str:
@@ -164,7 +171,12 @@ class Lmds:
     def compute_metrics(self, k: int) -> Dict[str, Any]:
         if not self.points_calculated:
             raise RuntimeError("Points not calculated!")
-        return self._metrics.calculate_all_metrics(self.all_points, k)
+        return self._metrics.calculate_all_metrics(
+            self.all_points,
+            self._last_idr_algorithm,
+            hash(str(self._landmarks['position'])),
+            k
+        )
 
     def select_landmarks(self, seed: int = 42):
         self._landmarks = self._heuristic_func(
@@ -199,7 +211,9 @@ class Lmds:
             return []
         self._L = np.zeros((len(self._landmarks), self._dimension))
         for i in range(self._dimension):
-            self._L[:, i] = self._eigenvectors[:, i] * np.sqrt(self._eigenvalues[i])
+            self._L[:, i] = self._eigenvectors[:, i] * np.sqrt(
+                self._eigenvalues[i]
+            )
 
         # Append the position of the landmarks to the dataset
         self._landmarks = self._landmarks.assign(
@@ -208,16 +222,16 @@ class Lmds:
 
         self._landmarks_reduced = True
 
-    def calculate(self, imds_algorithm: str, do_pca: bool = False):
+    def calculate(self, idr_algorithm: str):
         if not self.landmarks_reduced:
             raise RuntimeError("Landmarks not reduced!")
 
-        # Compute new delta_n using one of the imds algorithms
+        # Compute new delta_n using one of the inverse dr algorithms
         low_dimensional_distances = self._distance_metric_func(
             self.low_landmark_embeddings, self.low_landmark_embeddings
         )
-        self._delta_n = Imds(
-            imds_algorithm, self._distance_metric
+        self._delta_n = InverseDimensionaltyReduction(
+            idr_algorithm, self._distance_metric
         ).inference(low_dimensional_distances, self._delta_n_old)
 
         # recompute eigenvalues and eigenvectors
@@ -232,28 +246,34 @@ class Lmds:
         L_sharp = np.zeros((self._dimension, len(self._landmarks)))
         for i in range(self._dimension):
             L_sharp[i, :] = (
-                self._eigenvectors[:, i].transpose() * 1 / np.sqrt(self._eigenvalues[i])
+                self._eigenvectors[:, i].transpose() * 1 / np.sqrt(
+                    self._eigenvalues[i]
+                )
             )
 
         # We first need to get the embeddings of the other points
-        other_points = self._dataset.dataframe[~self._dataset.dataframe.index.isin(self._landmarks.index)]
-        other_embeddings = np.vstack(other_points["embeddings"].apply(np.array))
+        other_points = self._dataset.dataframe[
+            ~self._dataset.dataframe.index.isin(self._landmarks.index)
+        ]
+        other_embeddings = np.vstack(
+            other_points["embeddings"].apply(np.array)
+        )
 
         # We compute for each point the distance to the landmarks
         distance_to_landmarks = (
-            self._distance_metric_func(other_embeddings, self.high_landmark_embeddings)
-            ** 2
+            self._distance_metric_func(
+                other_embeddings, self.high_landmark_embeddings
+            ) ** 2
         )
 
         # Going through each point, we compute its position
         # by -1/2 * L_sharp * (distance_to_landmarks - mean_distance)
         positions = np.zeros((len(other_points), self._dimension))
         for i in range(len(other_points)):
-            position = -1 / 2 * (L_sharp.dot(distance_to_landmarks[i] - mean_distance))
+            position = -1 / 2 * (
+                L_sharp.dot(distance_to_landmarks[i] - mean_distance)
+            )
             positions[i, :] = position
-
-        if do_pca:
-            positions = self._pca(positions)
 
         # Append the position of the other points to the dataset
         self._no_landmark_points = other_points.assign(
@@ -261,33 +281,13 @@ class Lmds:
         )
 
         self._points_calculated = True
-
-    def _pca(self, positions: np.ndarray) -> np.ndarray:
-        # We merge the positions of the landmarks and the other points
-        X = np.vstack([self._L, positions]).T
-        # We compute the mean of each dimension
-        X_mean = np.mean(X, axis=1)
-
-        # We center the data
-        # X_hat = X - X_mean
-        X_hat = np.zeros((self._dimension, X.shape[1]))
-        for i in range(X.shape[1]):
-            X_hat[:, i] = X[:, i] - X_mean[:]
-
-        # We compute the eigenvalues and eigenvectors of X_hat * X_hat.T
-        __, eigenvectors = np.linalg.eigh(X_hat.dot(X_hat.T))
-
-        # With the eigenvectors we can compute the new positions
-        X_new = eigenvectors.T.dot(X_hat).T
-
-        self._landmarks = self._landmarks.assign(
-            position=X_new[: len(self._landmarks), :].tolist(), landmark=True
-        )
-        return X_new[len(self._landmarks) :, :]
+        self._last_idr_algorithm = idr_algorithm
 
     def _compute_eigenstuff(self) -> Tuple[np.ndarray, np.ndarray]:
         # H is the mean centering matrix
-        H = -np.ones((self._num_landmarks, self._num_landmarks)) / self._num_landmarks
+        H = -np.ones(
+            (self._num_landmarks, self._num_landmarks)
+        ) / self._num_landmarks
         np.fill_diagonal(H, 1 - 1 / self._num_landmarks)
 
         # B is the mean centered "inner-product" matrix
@@ -313,51 +313,3 @@ class Lmds:
             "points_calculated": self.points_calculated,
             "labels": self._dataset.labels
         }
-
-
-def wait_for_debugger(port: int = 56789):
-    """
-    Pauses the program until a remote debugger is attached.
-    Should only be called on rank0.
-    """
-
-    import debugpy
-
-    debugpy.listen(("0.0.0.0", port))
-    print(
-        f"Waiting for client to attach on port {port}... NOTE: if using "
-        f"docker, you need to forward the port with -p {port}:{port}."
-    )
-    debugpy.wait_for_client()
-
-
-if __name__ == "__main__":
-    import pickle
-
-    wait_for_debugger()
-
-    with open("./volumes/data/imdb_embeddings_small.pkl", "rb") as file:
-        dataset = pickle.load(file)
-
-    dataset_length = len(dataset)
-    print(f"Dataset Length: {dataset_length}")
-    print()
-
-    lmds = Lmds(
-        heuristic="random",
-        distance_metric="euclidean",
-        num_landmarks=10,
-        dataset=dataset
-    )
-
-    lmds.select_landmarks()
-    lmds.reduce_landmarks()
-    print("Landmarks:")
-    print(lmds.landmarks)
-    print()
-
-    lmds.calculate(imds_algorithm="model", do_pca=False)
-    print("All points:")
-    print(lmds.all_points)
-    metrics = lmds.compute_metrics(7)
-    print(metrics)
