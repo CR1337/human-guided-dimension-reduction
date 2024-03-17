@@ -74,7 +74,7 @@ def main(is_sweep=None, is_evaluation=None, config_path=None, eval_args=None):
         raise ValueError(f"Unknown model name: {args.model_name}")
 
     if args.load_model:
-        nn.load_state_dict(torch.load(os.path.join(args.load_model, 'model.ckpt')))
+        nn.load_state_dict(torch.load(os.path.join(args.load_model, "model.ckpt")))
 
     model = BasicModel(nn, args.learning_rate, args.beta1, args.beta2, args.epsilon)
 
@@ -83,7 +83,11 @@ def main(is_sweep=None, is_evaluation=None, config_path=None, eval_args=None):
         max_epochs=args.epochs,
         accelerator=args.accelerator,
         logger=wandb_logger,
-        callbacks=[EarlyStopping(monitor="val/loss", mode="min", patience=args.early_stopping_patience)]
+        callbacks=[
+            EarlyStopping(
+                monitor="val/loss", mode="min", patience=args.early_stopping_patience
+            )
+        ],
     )
 
     if args.only_test:
@@ -98,15 +102,18 @@ def main(is_sweep=None, is_evaluation=None, config_path=None, eval_args=None):
         print(f"Saving model to {checkpoint_path}")
         torch.save(model.model.state_dict(), f"{checkpoint_path}/model.ckpt")
         with open(f"{checkpoint_path}/params.yml", "w+") as f:
-            yaml.dump({
-                "model_name": args.model_name,
-                "max_input_size": max_input_size,
-                "max_landmarks": args.max_landmarks,
-                "model_param1": args.model_param1,
-                "model_param2": args.model_param2,
-                "inner_activation": args.inner_activation,
-                "end_activation": args.end_activation,
-            }, f)
+            yaml.dump(
+                {
+                    "model_name": args.model_name,
+                    "max_input_size": max_input_size,
+                    "max_landmarks": args.max_landmarks,
+                    "model_param1": args.model_param1,
+                    "model_param2": args.model_param2,
+                    "inner_activation": args.inner_activation,
+                    "end_activation": args.end_activation,
+                },
+                f,
+            )
 
 
 def wait_for_debugger(port: int = 56789):

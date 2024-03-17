@@ -8,8 +8,7 @@ from typing import Literal
 class TrainingArgs:
     # Run parameters
     accelerator: Literal["cpu", "cuda"] = "cpu"
-    precision: Literal["32-true", "16-mixed",
-                       "bf16-mixed", "64-true"] = "32-true"
+    precision: Literal["32-true", "16-mixed", "bf16-mixed", "64-true"] = "32-true"
     run_name: str = field(alias="-rn", default="default")
     debug: bool = field(alias="--debug", default=False)
     offline: bool = field(alias="--offline", default=False)

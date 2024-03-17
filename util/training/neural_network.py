@@ -6,7 +6,12 @@ class OneLayerModel(nn.Module):
     # Since we are allowing at max 30 landmarks the top triangle
     # (minus the diagonal) of the matrix will have 29 * 30 / 2 = 435 elements
     def __init__(
-        self, in_features=435, param=32, inner_activation="relu", end_activation="relu", dropout_prob=0.2
+        self,
+        in_features=435,
+        param=32,
+        inner_activation="relu",
+        end_activation="relu",
+        dropout_prob=0.2,
     ):
         super().__init__()
         self.dropout_in = nn.Dropout(dropout_prob)
@@ -49,6 +54,7 @@ class TwoLayerModel(nn.Module):
         x = self.end_activation(self.fc3(x))
         return x
 
+
 class TrivialModel(nn.Module):
     # A trivial model that does nothing
     def __init__(self):
@@ -56,6 +62,7 @@ class TrivialModel(nn.Module):
 
     def forward(self, x):
         return x
+
 
 def make_activation_func(activation: str):
     if activation == "relu":

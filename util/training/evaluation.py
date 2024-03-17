@@ -9,6 +9,7 @@ import train
 CHECKPOINT_DIR = "best_checkpoints"
 DATA_DIR = "util/training/data"
 
+
 def evaluate():
     checkpoints = glob.glob(f"{CHECKPOINT_DIR}/*")
     datasets = glob.glob(f"{DATA_DIR}/*")
@@ -16,7 +17,7 @@ def evaluate():
     for checkpoint in checkpoints:
         print(f"Running evaluation for: {checkpoint}")
         for dataset in datasets:
-            params = yaml.safe_load(open(os.path.join(checkpoint, 'params.yml')))
+            params = yaml.safe_load(open(os.path.join(checkpoint, "params.yml")))
             eval_args = {
                 "offline": True,
                 "only_test": True,
@@ -28,14 +29,15 @@ def evaluate():
                 "end_activation": params["end_activation"],
                 "max_landmarks": params["max_landmarks"],
             }
-            losses[checkpoint, dataset] = train.main(is_evaluation=True, eval_args=eval_args)
+            losses[checkpoint, dataset] = train.main(
+                is_evaluation=True, eval_args=eval_args
+            )
 
     with open("evaluation.csv", "w+") as f:
         writer = csv.writer(f)
         writer.writerow(["checkpoint", "dataset", "loss"])
         for (checkpoint, dataset), loss in losses.items():
             writer.writerow([checkpoint, dataset, loss])
-
 
 
 def wait_for_debugger(port: int = 56789):
@@ -52,6 +54,7 @@ def wait_for_debugger(port: int = 56789):
         f"docker, you need to forward the port with -p {port}:{port}."
     )
     debugpy.wait_for_client()
+
 
 if __name__ == "__main__":
     wait_for_debugger()

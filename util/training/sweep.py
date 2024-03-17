@@ -7,8 +7,18 @@ from cfgs.sweep_cfgs import sweep_cfgs
 
 def arg_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-n", "--name", type=str, help="If you want to create a sweep specify the name. The id will be ignored.")
-    parser.add_argument("-id", "--sweep_id", type=str, help="If you want to resume a sweep specify the id. The name will be ignored.")
+    parser.add_argument(
+        "-n",
+        "--name",
+        type=str,
+        help="If you want to create a sweep specify the name. The id will be ignored.",
+    )
+    parser.add_argument(
+        "-id",
+        "--sweep_id",
+        type=str,
+        help="If you want to resume a sweep specify the id. The name will be ignored.",
+    )
     parser.add_argument(
         "--config",
         type=str,
@@ -25,7 +35,9 @@ def main():
     args = arg_parser()
     if args.name:
         sweep_id = wandb.sweep(
-            sweep_cfgs[args.name], project=train.WANDB_PROJECT, entity=train.WANDB_ENTITY
+            sweep_cfgs[args.name],
+            project=train.WANDB_PROJECT,
+            entity=train.WANDB_ENTITY,
         )
     else:
         sweep_id = args.sweep_id
