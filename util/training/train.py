@@ -4,6 +4,7 @@ import wandb
 import torch
 import os
 from lightning.pytorch.loggers.wandb import WandbLogger
+from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 import dataclasses
 import yaml
 
@@ -15,11 +16,15 @@ WANDB_PROJECT = "human-guided-DR"
 WANDB_ENTITY = "frederic_sadrieh"
 
 
-def main(is_sweep=None, config_path=None):
-    if is_sweep:
-        wandb.init()
+def main(is_sweep=None, is_evaluation=None, config_path=None, eval_args=None):
+    if is_sweep or is_evaluation:
         args, __ = parse_known_args(TrainingArgs, config_path=config_path)
-        args.update_from_dict(wandb.config)
+
+        if is_sweep:
+            wandb.init()
+            args.update_from_dict(wandb.config)
+        if is_evaluation:
+            args.update_from_dict(eval_args)
     else:
         args = parse(TrainingArgs, add_config_path_arg=True)
 
@@ -47,6 +52,7 @@ def main(is_sweep=None, config_path=None):
             args.model_param1,
             args.inner_activation,
             args.end_activation,
+            args.dropout_prob,
         )
 
     elif args.model_name == "TwoLayerModel":
@@ -77,11 +83,12 @@ def main(is_sweep=None, config_path=None):
         max_epochs=args.epochs,
         accelerator=args.accelerator,
         logger=wandb_logger,
+        callbacks=[EarlyStopping(monitor="val/loss", mode="min", patience=args.early_stopping_patience)]
     )
 
     if args.only_test:
-        trainer.test(model, dm)
-        return
+        test_loss = trainer.test(model, dm)[0]["test/loss"]
+        return test_loss
     trainer.fit(model, dm)
 
     # We now want to save the weights of the neural network

@@ -17,6 +17,7 @@ class DataModule(L.LightningDataModule):
         self.test_file = str(self.data_dir / args.test_file)
         self.max_landmarks = args.max_landmarks
         self.num_workers = args.num_workers
+        self.batch_size = args.batch_size
 
     def prepare_data(self) -> None:
         # Prepare data by checking cache and processing datasets if necessary
@@ -107,36 +108,18 @@ class DataModule(L.LightningDataModule):
         return False, cache_path
 
     def train_dataloader(self):
-        return DataLoader(
-            self.train_dataset,
-            batch_size=None,
-            collate_fn=self.collate_fn,
-            shuffle=True,
-            num_workers=self.num_workers
-        )
+        return DataLoader(self.train_dataset, batch_size=self.batch_size, collate_fn=self.collate_fn, shuffle=True, num_workers=self.num_workers)
 
     def val_dataloader(self):
-        return DataLoader(
-            self.val_dataset,
-            batch_size=None,
-            collate_fn=self.collate_fn,
-            shuffle=False,
-            num_workers=self.num_workers
-        )
+        return DataLoader(self.val_dataset, batch_size=self.batch_size, collate_fn=self.collate_fn, shuffle=False, num_workers=self.num_workers)
 
     def test_dataloader(self):
-        return DataLoader(
-            self.test_dataset,
-            batch_size=None,
-            collate_fn=self.collate_fn,
-            shuffle=False,
-            num_workers=self.num_workers
-        )
-
-    def collate_fn(self, batch):
-        inputs = torch.Tensor(batch["input"])
-        labels = torch.Tensor(batch["label"])
-        masks = torch.Tensor(batch["mask"]).int()
+        return DataLoader(self.test_dataset, batch_size=self.batch_size, collate_fn=self.collate_fn, shuffle=False, num_workers=self.num_workers)
+    
+    def collate_fn(self, examples):
+        inputs = torch.stack([torch.Tensor(example["input"]) for example in examples])
+        labels = torch.stack([torch.Tensor(example["label"]) for example in examples])
+        masks = torch.stack([torch.Tensor(example["mask"]).int() for example in examples])
         return {
             "input": inputs,
             "label": labels,
@@ -155,7 +138,18 @@ def make_process_function(max_landmarks):
             for label in examples["label"]
         ]
         masks = [
-            torch.where(label != -1) for label in labels
+            torch.where(label != -1)[0] for label in labels
+        ]
+
+        # Pad masks to label length
+        masks = [
+            torch.cat(
+                [
+                    mask,
+                    torch.ones(len(labels[0]) - len(mask)) * -1,
+                ]
+            )
+            for mask in masks
         ]
 
         return {
@@ -166,8 +160,7 @@ def make_process_function(max_landmarks):
 
     return process_function
 
-
-def process_single_input(input, max_landmarks):
+def process_single_input(inp, max_landmarks):
     def _pad_array(array):
         return np.pad(
             array,
@@ -182,4 +175,4 @@ def process_single_input(input, max_landmarks):
         values = array[indices]
         return values.tolist()
 
-    return torch.tensor(_take_upper_triangle(_pad_array(input)))
+    return torch.tensor(_take_upper_triangle(_pad_array(inp)))
