@@ -14,6 +14,8 @@ class InverseDimensionaltyReduction:
     DOCKER_PATH: str = "/server/models"
     LOCAL_PATH: str = "./volumes/models"
 
+    INSIDE_DOCKER = bool(os.environ.get('INSIDE_DOCKER', False))
+
     _name: str
     _distance_metric: str
     _is_neural_network: bool
@@ -25,12 +27,13 @@ class InverseDimensionaltyReduction:
         self._distance_metric = distance_metric
         self._is_neural_network = name in self.NEURAL_NETWORK_NAMES
         if self._is_neural_network:
-            self._name += f"_{distance_metric}" if method == "MDS" else f"_{distance_metric}_tsne"
-
-            inside_docker = bool(os.environ.get('INSIDE_DOCKER', False))
+            self._name += (
+                f"_mds_{distance_metric}" if method == "MDS"
+                else f"_tsne_{distance_metric}"
+            )
 
             self._model_path = os.path.join(
-                self.DOCKER_PATH if inside_docker else self.LOCAL_PATH,
+                self.DOCKER_PATH if self.INSIDE_DOCKER else self.LOCAL_PATH,
                 self._name
             )
 
