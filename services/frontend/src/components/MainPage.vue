@@ -321,7 +321,8 @@ export default {
                 distance_metric: this.newDistanceMetric,
                 num_landmarks: parseInt(this.newNumLandmarks, 10),
                 seed: parseInt(this.seed, 10),
-                dataset_name: this.newDatasetName
+                dataset_name: this.newDatasetName,
+                method: this.newDrMethod
             })
         }).then((response) => {
             return response.json();
