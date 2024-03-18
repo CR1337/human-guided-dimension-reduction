@@ -14,6 +14,7 @@ def evaluate():
     checkpoints = glob.glob(f"{CHECKPOINT_DIR}/*")
     datasets = glob.glob(f"{DATA_DIR}/*")
     losses = {}
+    print(f"Testing: {checkpoints} on {datasets}")
     for checkpoint in checkpoints:
         print(f"Running evaluation for: {checkpoint}")
         for dataset in datasets:
@@ -57,5 +58,5 @@ def wait_for_debugger(port: int = 56789):
 
 
 if __name__ == "__main__":
-    wait_for_debugger()
+    # wait_for_debugger()
     evaluate()
