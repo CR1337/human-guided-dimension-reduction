@@ -20,12 +20,12 @@ class InverseDimensionaltyReduction:
 
     _model_path: str
 
-    def __init__(self, name: str, distance_metric: str):
+    def __init__(self, name: str, distance_metric: str, method: str):
         self._name = name
         self._distance_metric = distance_metric
         self._is_neural_network = name in self.NEURAL_NETWORK_NAMES
         if self._is_neural_network:
-            self._name += f"_{distance_metric}"
+            self._name += f"_{distance_metric}" if method == "MDS" else f"_{distance_metric}_tsne"
 
             inside_docker = bool(os.environ.get('INSIDE_DOCKER', False))
 

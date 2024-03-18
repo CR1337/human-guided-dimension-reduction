@@ -63,12 +63,13 @@ class DimensionalityReduction:
         num_landmarks: int,
         dataset: Dataset,
         dimension: int = 2,
-        create_dataset: bool = False
+        create_dataset: bool = False,
+        method: str = "MDS",
     ):
         self._heuristic = heuristic
         if heuristic == "random":
             self._heuristic_func = (
-                lambda dataset, num_landmarks, seed: dataset.dataframe.sample(
+                lambda dataset, num_landmarks, seed: dataset.sample(
                     n=num_landmarks, random_state=seed
                 )
             )
@@ -96,6 +97,7 @@ class DimensionalityReduction:
         self._num_landmarks = num_landmarks
         self._dataset = dataset
         self._dimension = dimension
+        self.method = method
 
         self._landmarks = None
         self._no_landmark_points = None
@@ -186,7 +188,6 @@ class DimensionalityReduction:
     def reduce_landmarks(self):
         if not self.landmarks_selected:
             raise RuntimeError("Landmarks not selected!")
-
         # Deltan is the squared distance matrix between the landmarks
         self._delta_n = (
             self._distance_metric_func(
@@ -199,21 +200,27 @@ class DimensionalityReduction:
 
         # compute eigenvalues and eigenvectors
         self._eigenvalues, self._eigenvectors = self._compute_eigenstuff()
-
-        # We compute the matrix L which is given
-        # by self._eigenvectors * sqrt(self._eigenvalues)
-        pos_eigenvalues = self._eigenvalues[self._eigenvalues > 0]
-        if len(pos_eigenvalues) < self._dimension:
-            print(
-                "Error: Not enough positive eigenvalues "
-                f"for the selected dimension {self._dimension}."
-            )
-            return []
-        self._L = np.zeros((len(self._landmarks), self._dimension))
-        for i in range(self._dimension):
-            self._L[:, i] = self._eigenvectors[:, i] * np.sqrt(
-                self._eigenvalues[i]
-            )
+        if self.method == "MDS":
+            # We compute the matrix L which is given
+            # by self._eigenvectors * sqrt(self._eigenvalues)
+            pos_eigenvalues = self._eigenvalues[self._eigenvalues > 0]
+            if len(pos_eigenvalues) < self._dimension:
+                print(
+                    "Error: Not enough positive eigenvalues "
+                    f"for the selected dimension {self._dimension}."
+                )
+                return []
+            self._L = np.zeros((len(self._landmarks), self._dimension))
+            for i in range(self._dimension):
+                self._L[:, i] = self._eigenvectors[:, i] * np.sqrt(
+                    self._eigenvalues[i]
+                )
+        elif self.method == "t-SNE":
+            from sklearn.manifold import TSNE
+            tsne = TSNE(n_components=self._dimension, metric="precomputed", perplexity=7, init="random", random_state=42)
+            self._L = tsne.fit_transform(self._delta_n)
+        else:
+            raise NotImplementedError(f"Unknown method: {self.method}")
 
         # Append the position of the landmarks to the dataset
         self._landmarks = self._landmarks.assign(
@@ -231,7 +238,7 @@ class DimensionalityReduction:
             self.low_landmark_embeddings, self.low_landmark_embeddings
         )
         self._delta_n = InverseDimensionaltyReduction(
-            idr_algorithm, self._distance_metric
+            idr_algorithm, self._distance_metric, self.method
         ).inference(low_dimensional_distances, self._delta_n_old)
 
         # recompute eigenvalues and eigenvectors

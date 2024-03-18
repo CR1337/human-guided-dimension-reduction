@@ -73,6 +73,9 @@ def parse_args():
         help="Path to the data You can specify a list by giving to comma seperated paths.",
         default="./volumes/data/imdb_embeddings_small.pkl"
     )
+    parser.add_argument(
+        "-m", "--method", type=str, help="The method to use for dimensionalty reduction."
+    )
     return parser.parse_args()
 
 
@@ -116,9 +119,9 @@ def main():
         range(args.landmark_lower_bound, landmark_upper_bound),
         desc="Generating data. For each number of landmarks independently",
     ):
-        train += generate_data(i, dataset, train_seeds, args.distance_metric)
-        val += generate_data(i, dataset, val_seeds, args.distance_metric)
-        test += generate_data(i, dataset, test_seeds, args.distance_metric)
+        train += generate_data(i, dataset, train_seeds, args.distance_metric, args.method)
+        val += generate_data(i, dataset, val_seeds, args.distance_metric, args.method)
+        test += generate_data(i, dataset, test_seeds, args.distance_metric, args.method)
 
     # This is slow, but it is only done once and a sanity check
     # to make sure that the sets are disjoint
@@ -143,7 +146,8 @@ def generate_data(
     num_landmarks: int,
     dataset: pd.DataFrame,
     seeds: List[int],
-    distance_metric: str
+    distance_metric: str,
+    method: str
 ) -> Dict[str, np.ndarray]:
     dr = DimensionalityReduction(
         heuristic="random",
@@ -151,6 +155,7 @@ def generate_data(
         num_landmarks=num_landmarks,
         dataset=dataset,
         create_dataset=True,
+        method=method
     )
     result = []
     for seed in seeds:
