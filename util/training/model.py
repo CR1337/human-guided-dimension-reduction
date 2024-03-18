@@ -31,12 +31,7 @@ class BasicModel(L.LightningModule):
         outputs = self.forward(batch["input"])
         loss = self._calculate_loss(outputs, batch["label"], batch["mask"])
         self.log(
-            "val/loss",
-            loss,
-            on_step=False,
-            on_epoch=True,
-            sync_dist=True,
-            batch_size=1
+            "val/loss", loss, on_step=False, on_epoch=True, sync_dist=True, batch_size=1
         )
 
     def test_step(self, batch, batch_idx):
@@ -51,13 +46,19 @@ class BasicModel(L.LightningModule):
             batch_size=1,
         )
 
-    def _calculate_loss(self, outputs, label, mask):
-        return (outputs[mask] - label[mask]).pow(2).mean()
+    def _calculate_loss(self, outputs, labels, masks):
+        # We first remove the padding from the mask
+        masks = [mask[mask != -1] for mask in masks]
+        # For each output we calculate the MSE loss ignoring padding through masking and then average the loss
+        return sum(
+            (outputs[i][masks[i]] - labels[i][masks[i]]).pow(2).mean()
+            for i in range(len(outputs))
+        ) / len(outputs)
 
     def configure_optimizers(self):
         optimizer = AdamW(
             self.model.parameters(),
-            lr=1e-3,
+            lr=self.learning_rate,
             betas=(self.beta1, self.beta2),
             eps=self.epsilon,
         )

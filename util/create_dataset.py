@@ -70,7 +70,7 @@ def parse_args():
     parser.add_argument(
         "-d", "--data_path",
         type=str,
-        help="Path to the data",
+        help="Path to the data You can specify a list by giving to comma seperated paths.",
         default="./volumes/data/imdb_embeddings_small.pkl"
     )
     return parser.parse_args()
@@ -81,8 +81,15 @@ def main():
     if args.debug:
         wait_for_debugger()
 
-    with open(args.data_path, "rb") as file:
-        dataset = pickle.load(file)
+    data_paths = args.data_path.split(",")
+
+    datasets = []
+
+    for data_path in data_paths:
+        with open(data_path, "rb") as file:
+            datasets.append(pickle.load(file))
+
+    dataset = pd.concat(datasets)
 
     # Since in python ranges are excluding the upper bound, we need to add 1
     landmark_upper_bound = args.landmark_upper_bound + 1
