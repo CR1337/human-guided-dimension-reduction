@@ -28,6 +28,7 @@ def balanced_heuristic(
 
 
 class DimensionalityReduction:
+    METHODS: List[str] = ["MDS", "t-SNE"]
     HEURISTICS: List[str] = ["balanced", "random", "first"]
     DISTANCE_METRICS: List[str] = ["euclidean", "cosine"]
     LANDMARK_AMOUNT_RANGE: Tuple[int, int] = (10, 30)
@@ -37,6 +38,7 @@ class DimensionalityReduction:
     _num_landmarks: int
     _dataset: pd.DataFrame
     _dimension: int
+    _method: str
 
     _heuristic_func: Callable
     _distance_metric_func: Callable
@@ -97,7 +99,7 @@ class DimensionalityReduction:
         self._num_landmarks = num_landmarks
         self._dataset = dataset
         self._dimension = dimension
-        self.method = method
+        self._method = method
 
         self._landmarks = None
         self._no_landmark_points = None
@@ -200,7 +202,7 @@ class DimensionalityReduction:
 
         # compute eigenvalues and eigenvectors
         self._eigenvalues, self._eigenvectors = self._compute_eigenstuff()
-        if self.method == "MDS":
+        if self._method == "MDS":
             # We compute the matrix L which is given
             # by self._eigenvectors * sqrt(self._eigenvalues)
             pos_eigenvalues = self._eigenvalues[self._eigenvalues > 0]
@@ -215,12 +217,18 @@ class DimensionalityReduction:
                 self._L[:, i] = self._eigenvectors[:, i] * np.sqrt(
                     self._eigenvalues[i]
                 )
-        elif self.method == "t-SNE":
+        elif self._method == "t-SNE":
             from sklearn.manifold import TSNE
-            tsne = TSNE(n_components=self._dimension, metric="precomputed", perplexity=7, init="random", random_state=42)
+            tsne = TSNE(
+                n_components=self._dimension,
+                metric="precomputed",
+                perplexity=7,
+                init="random",
+                random_state=42
+            )
             self._L = tsne.fit_transform(self._delta_n)
         else:
-            raise NotImplementedError(f"Unknown method: {self.method}")
+            raise NotImplementedError(f"Unknown method: {self._method}")
 
         # Append the position of the landmarks to the dataset
         self._landmarks = self._landmarks.assign(
@@ -238,7 +246,7 @@ class DimensionalityReduction:
             self.low_landmark_embeddings, self.low_landmark_embeddings
         )
         self._delta_n = InverseDimensionaltyReduction(
-            idr_algorithm, self._distance_metric, self.method
+            idr_algorithm, self._distance_metric, self._method
         ).inference(low_dimensional_distances, self._delta_n_old)
 
         # recompute eigenvalues and eigenvectors

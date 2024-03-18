@@ -47,6 +47,12 @@
           </select>
           <br>
 
+          <label for="dimensionalityRedeuctionMethod">Dimensionality Reduction Method: </label>
+          <select v-model="newDrMethod" name="dimensionalityRedeuctionMethod">
+            <option v-for="drMethod in drMethods" :value="drMethod">{{ drMethod }}</option>
+          </select>
+          <br>
+
           <label for="heuristic">Landmark selection heuristic: </label>
           <select v-model="newHeuristic" name="heuristic">
             <option v-for="heuristic in heuristics" :value="heuristic">{{ heuristic }}</option>
@@ -215,6 +221,8 @@ export default {
           }).then((data) => {
             this.datasetNames = data.dataset_names;
             this.newDatasetName = this.datasetNames[0];
+            this.drMethods = data.dr_methods;
+            this.newDrMethod = this.drMethods[0];
             this.heuristics = data.heuristics;
             this.newHeuristic = this.heuristics[0];
             this.minLandmarkAmount = data.min_landmark_amount;
@@ -236,6 +244,9 @@ export default {
 
           datasetNames: [],
           newDatasetName: null,
+
+          drMethods: [],
+          newDrMethod: null,
 
           heuristics: [],
           newHeuristic: null,

@@ -53,7 +53,8 @@ def route_constants():
             DimensionalityReduction.LANDMARK_AMOUNT_RANGE[1]
         ),
         'idr_algorithms': InverseDimensionaltyReduction.VALID_NAMES,
-        'dataset_names': Dataset.VALID_NAMES
+        'dataset_names': Dataset.VALID_NAMES,
+        'dr_methods': DimensionalityReduction.METHODS
     }, 200
 
 
@@ -77,6 +78,9 @@ def route_instances():
         num_landmarks = request.json.get(
             'num_landmarks', DEFAULT_NUM_LANDMARKS
         )
+        method = request.json.get(
+            'method', DimensionalityReduction.METHODS[0]
+        )
         seed = request.json.get('seed', DEFAULT_SEED)
         dataset_name = request.json.get('dataset_name', Dataset.VALID_NAMES[0])
         instance_ids = (
@@ -86,7 +90,8 @@ def route_instances():
             heuristic=heuristic,
             distance_metric=distance_metric,
             num_landmarks=num_landmarks,
-            dataset=Dataset(dataset_name)
+            dataset=Dataset(dataset_name),
+            method=method
         )
         instances[instance_ids] = instance
         instance.select_landmarks(seed=seed)
