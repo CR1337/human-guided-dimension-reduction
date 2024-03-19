@@ -32,6 +32,7 @@ class DimensionalityReduction:
     HEURISTICS: List[str] = ["balanced", "random", "first"]
     DISTANCE_METRICS: List[str] = ["euclidean", "cosine"]
     LANDMARK_AMOUNT_RANGE: Tuple[int, int] = (10, 30)
+    TSNE_SCALING_FACTOR: int = 150
 
     _heuristic: str
     _distance_metric: str
@@ -226,7 +227,7 @@ class DimensionalityReduction:
                 init="random",
                 random_state=42
             )
-            self._L = tsne.fit_transform(self._delta_n)
+            self._L = tsne.fit_transform(self._delta_n) / self.TSNE_SCALING_FACTOR
         else:
             raise NotImplementedError(f"Unknown method: {self._method}")
 
@@ -245,6 +246,8 @@ class DimensionalityReduction:
         low_dimensional_distances = self._distance_metric_func(
             self.low_landmark_embeddings, self.low_landmark_embeddings
         )
+        if self._method == "t-SNE":
+            low_dimensional_distances = self.TSNE_SCALING_FACTOR * low_dimensional_distances
         self._delta_n = InverseDimensionaltyReduction(
             idr_algorithm, self._distance_metric, self._method
         ).inference(low_dimensional_distances, self._delta_n_old)
