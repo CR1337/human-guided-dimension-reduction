@@ -1,5 +1,4 @@
 #include "euclidean.hpp"
-#include "quadtree.hpp"
 #include "util.hpp"
 
 #include <sys/sysinfo.h>
@@ -13,7 +12,6 @@ typedef struct {
     Index *ranks;
     size_t coreAmount;
     size_t datapointAmount;
-    Quadtree *quadtree;
 } EuclideanThreadArgs2D;
 
 typedef struct {
@@ -50,7 +48,6 @@ void * euclideanThreadHandler2D(void *args) {
     Index *ranks = threadArgs->ranks;
     const size_t coreAmount = threadArgs->coreAmount;
     const size_t datapointAmount = threadArgs->datapointAmount;
-    const Quadtree *quadtree = threadArgs->quadtree;
 
     size_t end = (
         start
@@ -60,15 +57,18 @@ void * euclideanThreadHandler2D(void *args) {
     if (end > datapointAmount) end = datapointAmount;
 
     for (size_t i = start; i < end; ++i) {
-        const Position2D *position = &positions[i];
-        std::vector<Index> values;
-        quadtree->findNearestNeighbors(position->x, position->y, datapointAmount, &values);
         for (size_t j = 0; j < datapointAmount; ++j) {
             distanceIndexPairs[i * datapointAmount + j] = (DistanceIndexPair){
-                .index = values[j],
-                .distance = euclideanDistance2D(position, &positions[values[j]])
+                .index = (Index)j,
+                .distance = euclideanDistance2D(positions + i, positions + j)
             };
         }
+        qsort(
+            distanceIndexPairs + i * datapointAmount,
+            datapointAmount,
+            sizeof(DistanceIndexPair),
+            compareDistanceIndexPair
+        );
         for (size_t j = 0; j < datapointAmount; ++j) {
             ranks[i * datapointAmount + distanceIndexPairs[i * datapointAmount + j].index] = j;
         }
@@ -120,23 +120,6 @@ void findEuclideanNeighbors2D(
     DistanceIndexPair *distanceIndexPairs,
     Index *ranks
 ) {
-    float minX = INFINITY;
-    float minY = INFINITY;
-    float maxX = -INFINITY;
-    float maxY = -INFINITY;
-    for (size_t i = 0; i < datapointAmount; ++i) {
-        Position2D *position = &positions[i];
-        if (position->x < minX) minX = position->x;
-        if (position->x > maxX) maxX = position->x;
-        if (position->y < minY) minY = position->y;
-        if (position->y > maxY) maxY = position->y;
-    }
-    Quadtree *quadtree = new Quadtree(minX, minY, maxX, maxY);
-    for (size_t i = 0; i < datapointAmount; ++i) {
-        Position2D *position = &positions[i];
-        quadtree->insert(position->x, position->y, i);
-    }
-
     size_t coreAmount = get_nprocs();
     if (coreAmount > datapointAmount) coreAmount = datapointAmount;
     pthread_t threads[coreAmount];
@@ -152,8 +135,7 @@ void findEuclideanNeighbors2D(
             .distanceIndexPairs = distanceIndexPairs,
             .ranks = ranks,
             .coreAmount = coreAmount,
-            .datapointAmount = datapointAmount,
-            .quadtree = quadtree
+            .datapointAmount = datapointAmount
         };
         pthread_create(&threads[i], NULL, euclideanThreadHandler2D, &threadArgs[i]);
     }
