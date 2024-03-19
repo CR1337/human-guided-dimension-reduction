@@ -7,7 +7,7 @@ from inference import Predictor
 
 class InverseDimensionaltyReduction:
 
-    NEURAL_NETWORK_NAMES: List[str] = ["nn_imdb", "nn_emotion"]
+    NEURAL_NETWORK_NAMES: List[str] = ["nn_imdb_mds", "nn_emotion_mds"]
     OTHER_NAMES: List[str] = ["none", "trivial"]
     VALID_NAMES: List[str] = OTHER_NAMES + NEURAL_NETWORK_NAMES
 
