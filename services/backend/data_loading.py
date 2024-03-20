@@ -1,7 +1,6 @@
 import lightning as L
 from torch.utils.data.dataloader import DataLoader
 import datasets
-from print_on_steroids import logger
 import os
 import numpy as np
 from typing import List
@@ -23,16 +22,16 @@ class DataModule(L.LightningDataModule):
         # Prepare data by checking cache and processing datasets if necessary
         cache_exists, cache_path = self._get_dataset_cache_path()
         if not cache_exists:
-            logger.info(
+            print(
                 f"Could not find cached processed dataset: {cache_path}, "
                 "creating it now..."
             )
             # Load and process dataset if not cached
             processed_datasets = self.load_and_process_dataset()
-            logger.info(f"Saving dataset to {cache_path}...")
+            print(f"Saving dataset to {cache_path}...")
             processed_datasets.save_to_disk(cache_path)
         else:
-            logger.success(f"Found cached processed dataset: {cache_path}.")
+            print(f"Found cached processed dataset: {cache_path}.")
 
     def setup(self, stage):
         # Setup datasets for training or validation stage
@@ -44,7 +43,7 @@ class DataModule(L.LightningDataModule):
             "should have been created in prepare_data()"
         )
 
-        logger.info(f"Loading cached processed dataset from {cache_path}...")
+        print(f"Loading cached processed dataset from {cache_path}...")
         processed_datasets = datasets.load_from_disk(cache_path)
 
         # Assign datasets and data collator for training and validation
@@ -60,7 +59,7 @@ class DataModule(L.LightningDataModule):
             "test": self.test_file,
         }
 
-        logger.info("Loading raw dataset...")
+        print("Loading raw dataset...")
 
         # Create temporary directory for dataset caching,
         # if disk space conservation is enabled
@@ -73,7 +72,7 @@ class DataModule(L.LightningDataModule):
 
         processed_datasets = self.process_datasets(train_val_datasets)
 
-        logger.success(f"Finished processing datasets: {processed_datasets}")
+        print(f"Finished processing datasets: {processed_datasets}")
 
         return processed_datasets
 
@@ -115,7 +114,7 @@ class DataModule(L.LightningDataModule):
 
     def test_dataloader(self):
         return DataLoader(self.test_dataset, batch_size=self.batch_size, collate_fn=self.collate_fn, shuffle=False, num_workers=self.num_workers)
-    
+
     def collate_fn(self, examples):
         inputs = torch.stack([torch.Tensor(example["input"]) for example in examples])
         labels = torch.stack([torch.Tensor(example["label"]) for example in examples])
