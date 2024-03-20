@@ -246,7 +246,7 @@ class DimensionalityReduction:
         low_dimensional_distances = self._distance_metric_func(
             self.low_landmark_embeddings, self.low_landmark_embeddings
         )
-        if self._method == "t-SNE":
+        if self._method == "t-SNE" and idr_algorithm.startswith("nn_"):
             low_dimensional_distances = self.TSNE_SCALING_FACTOR * low_dimensional_distances
         self._delta_n = InverseDimensionaltyReduction(
             idr_algorithm, self._distance_metric, self._method
