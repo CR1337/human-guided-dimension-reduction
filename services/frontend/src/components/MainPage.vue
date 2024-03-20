@@ -68,7 +68,7 @@
           <input v-model="seed" type="number" name="seed" min="0" step="1">
           <br>
 
-          <button @click="newDr()" :disabled="busy">Creare new Instance</button>
+          <button @click="newDr()" :disabled="busy">Create new Instance</button>
         </div>
         <br>
 
