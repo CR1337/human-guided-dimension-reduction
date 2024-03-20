@@ -9,7 +9,6 @@ import dataclasses
 import yaml
 
 from args import TrainingArgs
-from data_loading import DataModule
 from model import BasicModel
 
 import sys
@@ -18,6 +17,8 @@ from os import path
 sys.path.append(
     path.dirname(path.dirname(path.dirname(path.abspath(__file__)))) + "/services/backend"
 )
+
+from data_loading import DataModule
 
 WANDB_PROJECT = "human-guided-DR"
 WANDB_ENTITY = "frederic_sadrieh"
