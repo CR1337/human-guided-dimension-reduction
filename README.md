@@ -13,7 +13,7 @@ A web application for experimenting with dimensionality reduction with human gui
 3. cd into this repository with `cd human-guided-dimension-reduction`.
 4. Build the docker services by running `bin/build`.
 5. Create a virtual environment by executing `python3 -m venv .venv`.
-6. Activate the virtual environment with `source .venv/bin/activa.te`
+6. Activate the virtual environment with `source .venv/bin/activate`.
 7. Install dependencies using `pip3 install -r requirements.txt`.
 
 ### Windows
