@@ -1,3 +1,5 @@
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/CR1337/human-guided-dimension-reduction/blob/main/LICENSE)
+
 # human-guided-dimension-reduction
 
 A web application for experimenting with dimensionality reduction with human guidance.
