@@ -2,6 +2,7 @@ import gc
 import os
 import sys
 import subprocess
+from platform import system
 from typing import List
 
 BACKEND_PATH: str = os.path.join(os.getcwd(), 'services', 'backend')
@@ -11,7 +12,8 @@ from neighbors import Neighbors, ComputedNeighbors  # noqa: E402
 from dataset import Dataset  # noqa: E402
 
 NEIGHBORS_EXECUTABLE_PATH: str = os.path.join(
-    BACKEND_PATH, "neighbors", "neighbors"
+    BACKEND_PATH, "neighbors",
+    "neighbors.exe" if system() == "Windows" else "neighbors"
 )
 COMPILE_SCRIPT_PATH: str = os.path.join(
     BACKEND_PATH, "compile-neighbors"

@@ -15,8 +15,11 @@ A web application for experimenting with dimensionality reduction with human gui
 5. Create a virtual environment by executing `python3 -m venv .venv`.
 6. Activate the virtual environment with `source .venv/bin/activate`.
 7. Install dependencies using `pip3 install -r requirements.txt`.
+8. Run `services/backend/compile-neighbors`.
+9. Run `python3 util/init_neighbors.py`.
 
 ### Windows
+_(Not tested, you are on your own.)_
 
 1. Install [Docker](https://docs.docker.com/desktop/install/windows-install/)
 2. Clone this Repository using `git clone https://github.com/CR1337/human-guided-dimension-reduction.git`.
@@ -25,6 +28,9 @@ A web application for experimenting with dimensionality reduction with human gui
 5. Create a virtual environment by executing `python -m venv .venv`.
 6. Activate the virtual environment with `.venv\bin\activate`.
 7. Install dependencies using `pip install -r requirements.txt`.
+8. Make sure you have g++ installed (at least version 11.4).
+9. Run `services/backend/compile-neighbors.bat`.
+10. Run `python3 util/init_neighbors.py`.
 
 ## Running the App
 
