@@ -1,6 +1,6 @@
 .vscode
 .venv
-volumes/data/cache/** */
+volumes/data/cache/**
 !volumes/data/cache/.gitkeep
 services/backend/checkpoints/best/**
 !services/backend/checkpoints/best/.gitkeep
