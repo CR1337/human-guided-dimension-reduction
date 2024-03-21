@@ -19,7 +19,7 @@ A web application for experimenting with dimensionality reduction with human gui
 9. Run `./compile-neighbors`.
 10. Run `chmod +x neighbors/neighbors`.
 11. Change back to the main directory with `cd ../..`.
-12. Run `python3 util/init_neighbors.py` (This may take a while).
+12. Run `python3 util/init_neighbors.py`.
 
 ### Windows
 _(Not tested, you are on your own.)_
@@ -35,7 +35,7 @@ _(Not tested, you are on your own.)_
 9. Change directory with `cd services\backend`.
 10. Run `./compile-neighbors.bat`.
 11. Change back to the main directory with `cd ..\..`.
-12. Run `python3 util/init_neighbors.py` (This may take a while).
+12. Run `python3 util/init_neighbors.py`.
 
 ## Running the App
 
