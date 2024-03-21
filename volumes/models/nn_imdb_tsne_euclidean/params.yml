@@ -1,0 +1,7 @@
+end_activation: relu
+inner_activation: sigmoid
+max_input_size: 435
+max_landmarks: 30
+model_name: OneLayerModel
+model_param1: 18
+model_param2: 0

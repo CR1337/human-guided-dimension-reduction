@@ -1,9 +1,7 @@
 .vscode
 .venv
 volumes/data/**
-volumes/models/**
 !volumes/data/.gitkeep
-!volumes/models/.gitkeep
 !volumes/data/cache/.gitkeep
 services/backend/checkpoints/best/**
 !services/backend/checkpoints/best/.gitkeep

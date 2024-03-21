@@ -1,0 +1,7 @@
+end_activation: identity
+inner_activation: relu
+max_input_size: 435
+max_landmarks: 30
+model_name: OneLayerModel
+model_param1: 32
+model_param2: 0
