@@ -11,7 +11,7 @@ from neighbors import CachedNeighbors
 class Dataset:
 
     VALID_NAMES: List[str] = [
-        "imdb_small", "imdb", "emotion", "glue_mnli_small"
+        "imdb_small", "emotion", "glue_mnli_small"
     ]
 
     DOCKER_PATH: str = "/server/data"
