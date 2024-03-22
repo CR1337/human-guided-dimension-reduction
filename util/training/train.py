@@ -15,11 +15,13 @@ import sys
 from os import path
 
 sys.path.append(
-    path.dirname(path.dirname(path.dirname(path.abspath(__file__)))) + "/services/backend"
+    path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
+    + "/services/backend"
 )
 
 from data_loading import DataModule
 
+# Replace these with your own values
 WANDB_PROJECT = "human-guided-DR"
 WANDB_ENTITY = "frederic_sadrieh"
 
@@ -27,7 +29,6 @@ WANDB_ENTITY = "frederic_sadrieh"
 def main(is_sweep=None, is_evaluation=None, config_path=None, eval_args=None):
     if is_sweep or is_evaluation:
         args, __ = parse_known_args(TrainingArgs, config_path=config_path)
-
         if is_sweep:
             wandb.init()
             args.update_from_dict(wandb.config)
@@ -48,6 +49,7 @@ def main(is_sweep=None, is_evaluation=None, config_path=None, eval_args=None):
     )
     wandb_logger.log_hyperparams(dataclasses.asdict(args))
 
+    # The size of the top triangle of a square distance matrix, with the sides being max_landmarks long
     max_input_size = args.max_landmarks * (args.max_landmarks - 1) // 2
 
     dm = DataModule(args)
@@ -84,7 +86,9 @@ def main(is_sweep=None, is_evaluation=None, config_path=None, eval_args=None):
     if args.load_model:
         nn.load_state_dict(torch.load(os.path.join(args.load_model, "model.ckpt")))
 
-    model = BasicModel(nn, args.learning_rate, args.beta1, args.beta2, args.epsilon)
+    model = BasicModel(
+        nn, args.batch_size, args.learning_rate, args.beta1, args.beta2, args.epsilon
+    )
 
     trainer = Trainer(
         precision=args.precision,

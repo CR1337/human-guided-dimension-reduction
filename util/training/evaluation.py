@@ -6,11 +6,15 @@ import csv
 
 import train
 
+# Needs to be adjusted based on the individual setup
 CHECKPOINT_DIR = "best_checkpoints"
 DATA_DIR = "util/training/data"
 
 
 def evaluate():
+    """
+    Evaluates all checkpoints on all datasets. The results are written to a csv file. This script is to replicate the results from table 2 of the poster.
+    """
     checkpoints = glob.glob(f"{CHECKPOINT_DIR}/*")
     datasets = glob.glob(f"{DATA_DIR}/*")
     losses = {}
@@ -41,22 +45,5 @@ def evaluate():
             writer.writerow([checkpoint, dataset, loss])
 
 
-def wait_for_debugger(port: int = 56789):
-    """
-    Pauses the program until a remote debugger is attached.
-    Should only be called on rank0.
-    """
-
-    import debugpy
-
-    debugpy.listen(("0.0.0.0", port))
-    print(
-        f"Waiting for client to attach on port {port}... NOTE: if using "
-        f"docker, you need to forward the port with -p {port}:{port}."
-    )
-    debugpy.wait_for_client()
-
-
 if __name__ == "__main__":
-    # wait_for_debugger()
     evaluate()

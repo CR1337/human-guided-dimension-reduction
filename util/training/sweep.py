@@ -11,7 +11,7 @@ def arg_parser():
         "-n",
         "--name",
         type=str,
-        help="If you want to create a sweep specify the name. The id will be ignored.",
+        help="Name of the sweep configuration. The id will be ignored. Will start a new sweep.",
     )
     parser.add_argument(
         "-id",
@@ -22,7 +22,7 @@ def arg_parser():
     parser.add_argument(
         "--config",
         type=str,
-        help="Path to the config file, where the default values are set.",
+        help="Path to the config file, where the default values (not modified by the sweep) are set.",
     )
     parser.add_argument("--count", type=int, default=10)
     return parser.parse_args()

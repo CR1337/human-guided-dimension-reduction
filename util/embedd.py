@@ -3,12 +3,13 @@ import pandas as pd
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
 
+
 def arg_parser():
     parser = argparse.ArgumentParser(description="Download a dataset")
     parser.add_argument(
         "dataset_name",
         type=str,
-        help="Name of the dataset to download",
+        help="Name of the dataset to embed",
     )
     return parser.parse_args()
 

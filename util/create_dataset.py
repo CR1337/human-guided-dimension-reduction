@@ -1,5 +1,4 @@
 import argparse
-import pickle
 import random
 from typing import List, Dict
 import os
@@ -9,19 +8,17 @@ import sys
 import jsonlines
 from tqdm import tqdm
 import numpy as np
-import pandas as pd
 
 sys.path.append(
     path.dirname(path.dirname(path.abspath(__file__))) + "/services/backend"
 )
 from dr import DimensionalityReduction  # noqa: E402
+from dataset import Dataset  # noqa: E402
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Create dataset for training")
-    parser.add_argument(
-        "data_dir", type=str, help="Directory to store the dataset"
-    )
+    parser.add_argument("data_dir", type=str, help="Directory to store the dataset")
     parser.add_argument(
         "-ts",
         "--train_size",
@@ -37,10 +34,7 @@ def parse_args():
         help="Size of the validation set",
     )
     parser.add_argument(
-        "-tes", "--test_size",
-        default=5_250,
-        type=float,
-        help="Size of the test set"
+        "-tes", "--test_size", default=5_250, type=float, help="Size of the test set"
     )
     parser.add_argument(
         "-ll",
@@ -65,31 +59,15 @@ def parse_args():
     )
     parser.add_argument("--seed", default=42, type=int, help="Random seed")
     parser.add_argument(
-        "--debug", action="store_true", help="Wait for debugger to attach"
-    )
-    parser.add_argument(
-        "-d", "--data_path",
-        type=str,
-        help="Path to the data You can specify a list by giving to comma seperated paths.",
-        default="./volumes/data/imdb_embeddings_small.pkl"
+        "-d", "--data_set", type=str, help="Dataset name.", default="imdb_small"
     )
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    if args.debug:
-        wait_for_debugger()
 
-    data_paths = args.data_path.split(",")
-
-    datasets = []
-
-    for data_path in data_paths:
-        with open(data_path, "rb") as file:
-            datasets.append(pickle.load(file))
-
-    dataset = pd.concat(datasets)
+    dataset = Dataset(args.data_set, no_neighbors=True)
 
     # Since in python ranges are excluding the upper bound, we need to add 1
     landmark_upper_bound = args.landmark_upper_bound + 1
@@ -101,15 +79,13 @@ def main():
     random.seed(args.seed)
     seeds = random.sample(range(1_000_000), samples_per_landmark_count)
 
-    train_seed_count = int(
-        args.train_size / num_samples * samples_per_landmark_count
-    )
+    train_seed_count = int(args.train_size / num_samples * samples_per_landmark_count)
     val_seed_count = int(
         args.validation_size / num_samples * samples_per_landmark_count
     )
     train_seeds = seeds[:train_seed_count]
-    val_seeds = seeds[train_seed_count:train_seed_count + val_seed_count]
-    test_seeds = seeds[train_seed_count + val_seed_count:]
+    val_seeds = seeds[train_seed_count : train_seed_count + val_seed_count]
+    test_seeds = seeds[train_seed_count + val_seed_count :]
 
     train, val, test = [], [], []
     for i in tqdm(
@@ -140,10 +116,7 @@ def main():
 
 
 def generate_data(
-    num_landmarks: int,
-    dataset: pd.DataFrame,
-    seeds: List[int],
-    distance_metric: str
+    num_landmarks: int, dataset: Dataset, seeds: List[int], distance_metric: str
 ) -> Dict[str, np.ndarray]:
     dr = DimensionalityReduction(
         heuristic="random",
@@ -157,40 +130,16 @@ def generate_data(
         dr.select_landmarks(seed=seed)
         dr.reduce_landmarks()
 
-        original_position = np.vstack(
-            dr.landmarks["embeddings"].apply(np.array)
-        )
-        projected_position = np.vstack(
-            dr.landmarks["position"].apply(np.array)
-        )
+        original_position = np.vstack(dr.landmarks["embeddings"].apply(np.array))
+        projected_position = np.vstack(dr.landmarks["position"].apply(np.array))
 
-        original_distances = dr.distances(
-            original_position, original_position
-        ).tolist()
+        original_distances = dr.distances(original_position, original_position).tolist()
         projected_distances = dr.distances(
             projected_position, projected_position
         ).tolist()
 
-        result.append(
-            {"label": original_distances, "input": projected_distances}
-        )
+        result.append({"label": original_distances, "input": projected_distances})
     return result
-
-
-def wait_for_debugger(port: int = 56789):
-    """
-    Pauses the program until a remote debugger is attached.
-    Should only be called on rank0.
-    """
-
-    import debugpy
-
-    debugpy.listen(("0.0.0.0", port))
-    print(
-        f"Waiting for client to attach on port {port}... NOTE: if using "
-        f"docker, you need to forward the port with -p {port}:{port}."
-    )
-    debugpy.wait_for_client()
 
 
 if __name__ == "__main__":

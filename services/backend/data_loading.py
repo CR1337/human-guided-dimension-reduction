@@ -8,6 +8,10 @@ import torch
 
 
 class DataModule(L.LightningDataModule):
+    """
+    The DataModule class is responsible for loading and processing the dataset. It needs to reside in the docker container for inference.
+    """
+
     def __init__(self, args):
         super().__init__()
         self.data_dir = args.data_dir
@@ -36,9 +40,7 @@ class DataModule(L.LightningDataModule):
     def setup(self, stage):
         # Setup datasets for training or validation stage
         cache_exists, cache_path = self._get_dataset_cache_path()
-        assert (
-            cache_exists
-        ), (
+        assert cache_exists, (
             f"Could not find cached processed dataset: {cache_path}, "
             "should have been created in prepare_data()"
         )
@@ -97,8 +99,7 @@ class DataModule(L.LightningDataModule):
         processed_data_dir = str(self.data_dir / "processed")
         cache_path = os.path.join(
             processed_data_dir,
-            f"seq_len_{self.max_landmarks}process_fn_hash"
-            f"{process_fn_hash}.arrow",
+            f"seq_len_{self.max_landmarks}process_fn_hash" f"{process_fn_hash}.arrow",
         )
 
         # Determine if a valid cache file exists and return its path
@@ -107,23 +108,39 @@ class DataModule(L.LightningDataModule):
         return False, cache_path
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.batch_size, collate_fn=self.collate_fn, shuffle=True, num_workers=self.num_workers)
+        return DataLoader(
+            self.train_dataset,
+            batch_size=self.batch_size,
+            collate_fn=self.collate_fn,
+            shuffle=True,
+            num_workers=self.num_workers,
+        )
 
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, batch_size=self.batch_size, collate_fn=self.collate_fn, shuffle=False, num_workers=self.num_workers)
+        return DataLoader(
+            self.val_dataset,
+            batch_size=self.batch_size,
+            collate_fn=self.collate_fn,
+            shuffle=False,
+            num_workers=self.num_workers,
+        )
 
     def test_dataloader(self):
-        return DataLoader(self.test_dataset, batch_size=self.batch_size, collate_fn=self.collate_fn, shuffle=False, num_workers=self.num_workers)
+        return DataLoader(
+            self.test_dataset,
+            batch_size=self.batch_size,
+            collate_fn=self.collate_fn,
+            shuffle=False,
+            num_workers=self.num_workers,
+        )
 
     def collate_fn(self, examples):
         inputs = torch.stack([torch.Tensor(example["input"]) for example in examples])
         labels = torch.stack([torch.Tensor(example["label"]) for example in examples])
-        masks = torch.stack([torch.Tensor(example["mask"]).int() for example in examples])
-        return {
-            "input": inputs,
-            "label": labels,
-            "mask": masks
-        }
+        masks = torch.stack(
+            [torch.Tensor(example["mask"]).int() for example in examples]
+        )
+        return {"input": inputs, "label": labels, "mask": masks}
 
 
 def make_process_function(max_landmarks):
@@ -136,9 +153,7 @@ def make_process_function(max_landmarks):
             process_single_input(np.asarray(label), max_landmarks)
             for label in examples["label"]
         ]
-        masks = [
-            torch.where(label != -1)[0] for label in labels
-        ]
+        masks = [torch.where(label != -1)[0] for label in labels]
 
         # Pad masks to label length
         masks = [
@@ -159,12 +174,12 @@ def make_process_function(max_landmarks):
 
     return process_function
 
+
 def process_single_input(inp, max_landmarks):
     def _pad_array(array):
         return np.pad(
             array,
-            ((0, max_landmarks - array.shape[0]),
-             (0, max_landmarks - array.shape[1])),
+            ((0, max_landmarks - array.shape[0]), (0, max_landmarks - array.shape[1])),
             mode="constant",
             constant_values=-1,
         )

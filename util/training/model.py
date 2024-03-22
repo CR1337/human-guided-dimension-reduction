@@ -3,9 +3,14 @@ from torch.optim import AdamW
 
 
 class BasicModel(L.LightningModule):
+    """
+    This is the basic training loop for a model (neural network, from neural_network.py)
+    """
+
     def __init__(
         self,
         model,
+        batch_size: int,
         learning_rate=1e-3,
         beta1=0.9,
         beta2=0.99,
@@ -13,6 +18,7 @@ class BasicModel(L.LightningModule):
     ):
         super().__init__()
         self.model = model
+        self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.beta1 = beta1
         self.beta2 = beta2
@@ -24,14 +30,21 @@ class BasicModel(L.LightningModule):
     def training_step(self, batch, batch_idx):
         outputs = self.forward(batch["input"])
         loss = self._calculate_loss(outputs, batch["label"], batch["mask"])
-        self.log("train/loss", loss, on_step=True, on_epoch=True, batch_size=1)
+        self.log(
+            "train/loss", loss, on_step=True, on_epoch=True, batch_size=self.batch_size
+        )
         return loss
 
     def validation_step(self, batch, batch_idx):
         outputs = self.forward(batch["input"])
         loss = self._calculate_loss(outputs, batch["label"], batch["mask"])
         self.log(
-            "val/loss", loss, on_step=False, on_epoch=True, sync_dist=True, batch_size=1
+            "val/loss",
+            loss,
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+            batch_size=self.batch_size,
         )
 
     def test_step(self, batch, batch_idx):
@@ -43,7 +56,7 @@ class BasicModel(L.LightningModule):
             on_step=False,
             on_epoch=True,
             sync_dist=True,
-            batch_size=1,
+            batch_size=self.batch_size,
         )
 
     def _calculate_loss(self, outputs, labels, masks):

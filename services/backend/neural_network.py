@@ -1,5 +1,7 @@
 import torch.nn as nn
 
+# The file needs to reside in the docker container for inference
+
 
 class OneLayerModel(nn.Module):
     # A basic one layer neural network
@@ -33,6 +35,7 @@ class TwoLayerModel(nn.Module):
     # A basic 2 layer neural network
     # Since we are allowing at max 30 landmarks the top triangle
     # (minus the diagonal) of the matrix will have 29*30/2 = 435 elements
+    # It was not used in the end experiments, since the one layer model was sufficient
     def __init__(
         self,
         in_features=435,
@@ -56,7 +59,7 @@ class TwoLayerModel(nn.Module):
 
 
 class TrivialModel(nn.Module):
-    # A trivial model that does nothing
+    # A trivial model that does nothing, used for testing
     def __init__(self):
         super().__init__()
 
