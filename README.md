@@ -33,9 +33,9 @@ _(Not tested, you are on your own.)_
 7. Install dependencies using `pip install -r requirements.txt`.
 8. Make sure you have g++ installed (at least version 11.4).
 9. Change directory with `cd services\backend`.
-10. Run `./compile-neighbors.bat`.
+10. Run `.\compile-neighbors.bat`.
 11. Change back to the main directory with `cd ..\..`.
-12. Run `python3 util/init_neighbors.py`.
+12. Run `python3 util\init_neighbors.py`.
 
 ## Running the App
 
