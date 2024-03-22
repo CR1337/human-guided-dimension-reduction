@@ -18,7 +18,7 @@ sys.path.append(
     path.dirname(path.dirname(path.dirname(path.abspath(__file__)))) + "/services/backend"
 )
 
-from services.backend.data_loading import DataModule
+from data_loading import DataModule
 
 WANDB_PROJECT = "human-guided-DR"
 WANDB_ENTITY = "frederic_sadrieh"
