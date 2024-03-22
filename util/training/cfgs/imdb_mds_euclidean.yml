@@ -1,0 +1,11 @@
+accelerator: "cpu"
+model_name: "OneLayerModel"
+epochs: 20
+precision: 32-true
+data_dir: util/training/data/imdb_euclidean
+learning_rate: 0.003481426418489143
+model_param1: 75
+inner_activation: "identity"
+end_activation: "identity"
+batch_size: 64
+dropout_prob: 0.42491360938753087

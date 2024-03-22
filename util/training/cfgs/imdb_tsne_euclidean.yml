@@ -1,0 +1,11 @@
+accelerator: "cpu"
+model_name: "OneLayerModel"
+epochs: 20
+precision: 32-true
+data_dir: util/training/data/tsne_imdb_euclidean
+learning_rate: 0.06403573308878775
+model_param1: 18
+inner_activation: "relu"
+end_activation: "sigmoid"
+batch_size: 256
+dropout_prob: 0.2558230719380177

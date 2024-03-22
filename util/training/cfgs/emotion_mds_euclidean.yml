@@ -1,0 +1,11 @@
+accelerator: "cpu"
+model_name: "OneLayerModel"
+epochs: 20
+precision: 32-true
+data_dir: util/training/data/emotion_euclidean
+learning_rate: 0.002126540419778232
+model_param1: 75
+inner_activation: "relu"
+end_activation: "identity"
+batch_size: 32
+dropout_prob: 0.42491360938753087

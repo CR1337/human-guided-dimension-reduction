@@ -1,0 +1,11 @@
+accelerator: "cpu"
+model_name: "OneLayerModel"
+epochs: 20
+precision: 32-true
+data_dir: util/training/data/tsne_imdb_cosine
+learning_rate: 0.0029980365796411584
+model_param1: 32
+inner_activation: "relu"
+end_activation: "identity"
+batch_size: 64
+dropout_prob: 0.2
